@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "soc/soc_caps.h"
@@ -13,8 +14,7 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
-
-const static char *TAG = "NTC_SYSTEM";
+#include "driver/ledc.h"
 
 /*---------------------------------------------------------------
         ADC General Macros
@@ -29,17 +29,113 @@ const static char *TAG = "NTC_SYSTEM";
 #define T0 298.15
 #define BETA 3470.0
 
+//PWM CONFIG 
+#define LEDC_TIMER      LEDC_TIMER_0
+#define LEDC_MODE       LEDC_LOW_SPEED_MODE
+#define LEDC_DUTY_RES   LEDC_TIMER_10_BIT  
+#define LEDC_FREQUENCY  5000
+
+#define LEDC_CHANNEL_R  LEDC_CHANNEL_0
+#define LEDC_CHANNEL_G  LEDC_CHANNEL_1
+#define LEDC_CHANNEL_B  LEDC_CHANNEL_2
+
+#define PWM_MAX ((1 << 10) - 1)
+
 //LED RGB 
 #define LED_R 3 
 #define LED_G 4 
 #define LED_B 5 
 
+const static char *TAG = "NTC_SYSTEM";
 
-
-static int adc_raw[2][10];
-static int voltage[2][10];
 static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
 static void example_adc_calibration_deinit(adc_cali_handle_t handle);
+
+//ADC 
+adc_oneshot_unit_handle_t adc_handle; 
+adc_cali_handle_t adc_cali_handle; 
+bool do_calibration = false; 
+
+//PWM
+
+void pwm_init(){
+
+    ledc_timer_config_t timer = {
+        .speed_mode = LEDC_MODE,
+        .timer_num = LEDC_TIMER,
+        .duty_resolution = LEDC_DUTY_RES,
+        .freq_hz = LEDC_FREQUENCY
+    };
+    ledc_timer_config(&timer);
+
+    ledc_channel_config_t ch = {
+        .speed_mode = LEDC_MODE,
+        .timer_sel = LEDC_TIMER,
+        .duty = 0,
+        .hpoint = 0
+    };
+
+    ch.channel = LEDC_CHANNEL_R; ch.gpio_num = LED_R; ledc_channel_config(&ch);
+    ch.channel = LEDC_CHANNEL_G; ch.gpio_num = LED_G; ledc_channel_config(&ch);
+    ch.channel = LEDC_CHANNEL_B; ch.gpio_num = LED_B; ledc_channel_config(&ch);
+}
+
+void set_color(uint16_t r, uint16_t g, uint16_t b){
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R, r);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G, g);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, b);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
+}
+
+static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle)
+{
+    adc_cali_handle_t handle = NULL;
+    esp_err_t ret = ESP_FAIL;
+    bool calibrated = false;
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
+        adc_cali_curve_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .chan = channel,
+            .atten = atten,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
+        }
+    }
+#endif
+
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
+        adc_cali_line_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = atten,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
+        }
+    }
+#endif
+
+    *out_handle = handle;
+    if (!calibrated) {
+        ESP_LOGW(TAG, "ADC Calibration not available");
+    }
+
+    return calibrated;
+}
+
 
 void app_main(void)
 {
@@ -103,54 +199,7 @@ void app_main(void)
 /*---------------------------------------------------------------
         ADC Calibration
 ---------------------------------------------------------------*/
-static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle)
-{
-    adc_cali_handle_t handle = NULL;
-    esp_err_t ret = ESP_FAIL;
-    bool calibrated = false;
 
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-    if (!calibrated) {
-        ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
-        adc_cali_curve_fitting_config_t cali_config = {
-            .unit_id = unit,
-            .chan = channel,
-            .atten = atten,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
-        };
-        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
-        if (ret == ESP_OK) {
-            calibrated = true;
-        }
-    }
-#endif
-
-#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    if (!calibrated) {
-        ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
-        adc_cali_line_fitting_config_t cali_config = {
-            .unit_id = unit,
-            .atten = atten,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
-        };
-        ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
-        if (ret == ESP_OK) {
-            calibrated = true;
-        }
-    }
-#endif
-
-    *out_handle = handle;
-    if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Calibration Success");
-    } else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
-        ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
-    } else {
-        ESP_LOGE(TAG, "Invalid arg or no memory");
-    }
-
-    return calibrated;
-}
 
 static void example_adc_calibration_deinit(adc_cali_handle_t handle)
 {
