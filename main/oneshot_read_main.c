@@ -14,21 +14,27 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 
-const static char *TAG = "EXAMPLE";
+const static char *TAG = "NTC_SYSTEM";
 
 /*---------------------------------------------------------------
         ADC General Macros
 ---------------------------------------------------------------*/
 //ADC1 Channels
-#if CONFIG_IDF_TARGET_ESP32
-#define EXAMPLE_ADC1_CHAN0          ADC_CHANNEL_4
-#define EXAMPLE_ADC1_CHAN1          ADC_CHANNEL_5
-#else
-#define EXAMPLE_ADC1_CHAN0          ADC_CHANNEL_2
-#define EXAMPLE_ADC1_CHAN1          ADC_CHANNEL_3
-#endif
+#define ADC_CHANNEL                 ADC_CHANNEL_2     
+#define ADC_ATTEN                   ADC_ATTEN_DB_12
 
-#define EXAMPLE_ADC_ATTEN           ADC_ATTEN_DB_12
+#define VCC 3.3 //VCC of the system
+#define R_FIXED 4700.0
+#define R0 4700.0
+#define T0 298.15
+#define BETA 3470.0
+
+//LED RGB 
+#define LED_R 3 
+#define LED_G 4 
+#define LED_B 5 
+
+
 
 static int adc_raw[2][10];
 static int voltage[2][10];
