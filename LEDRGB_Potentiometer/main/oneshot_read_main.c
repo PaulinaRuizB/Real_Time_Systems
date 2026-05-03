@@ -44,8 +44,14 @@ const static char *TAG = "RGB_CTRL";
 #define LED_B GPIO_NUM_10
 
 //PWM Config 
-#define PWM_FREQ 5000
-#define PWM_RES  LEDC_TIMER_8_BIT
+#define LEDC_TIMER      LEDC_TIMER_0
+#define LEDC_MODE       LEDC_LOW_SPEED_MODE
+#define LEDC_DUTY_RES   LEDC_TIMER_8_BIT  
+#define LEDC_FREQUENCY  5000
+
+#define LEDC_CHANNEL_R  LEDC_CHANNEL_0
+#define LEDC_CHANNEL_G  LEDC_CHANNEL_1
+#define LEDC_CHANNEL_B  LEDC_CHANNEL_2
 
 // variables de inicialización 
 uint8_t duty_r = 0;
@@ -75,6 +81,88 @@ static int voltage[2][10];
 static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
 static void example_adc_calibration_deinit(adc_cali_handle_t handle);
 
+// Función para configurar el PWM 
+void pwm_init()
+{
+    ledc_timer_config_t timer = {
+        .speed_mode = LEDC_MODE,
+        .timer_num = LEDC_TIMER,
+        .duty_resolution = LEDC_DUTY_RES,
+        .freq_hz = LEDC_FREQUENCY,
+        .clk_cfg = LEDC_AUTO_CLK
+    };
+    ledc_timer_config(&timer);
+
+    ledc_channel_config_t ch[3] = {
+        {.channel = LEDC_CHANNEL_0, .gpio_num = LED_R},
+        {.channel = LEDC_CHANNEL_1, .gpio_num = LED_G},
+        {.channel = LEDC_CHANNEL_2, .gpio_num = LED_B},
+    };
+
+    for (int i = 0; i < 3; i++) {
+        ch[i].speed_mode = LEDC_MODE;
+        ch[i].timer_sel = LEDC_TIMER_0;
+        ch[i].duty = 0;
+        ch[i].hpoint = 0;
+        ledc_channel_config(&ch[i]);
+    }
+}
+
+// Función para actualizar el PWM con el potenciometro 
+void update_pwm()
+{
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R, duty_r);
+    ledc_update_duty(LLEDC_MODE, LEDC_CHANNEL_R);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G duty_g);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, duty_b);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
+}
+
+//Función para configurar los botones de control
+void gpio_init_buttons()
+{
+    gpio_config_t io = {
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 1,
+        .pin_bit_mask = (1ULL<<BTN_R) | (1ULL<<BTN_G) | (1ULL<<BTN_B) | (1ULL<<BTN_OK)
+    };
+    gpio_config(&io);
+}
+
+//Función para escalar los datos tomados del ADC a PWM para el control del RGB
+uint8_t map_adc_to_pwm(int adc_raw)
+{
+    return (adc_raw * 255) / 4095; // 12-bit ADC → 8-bit PWM
+}
+
+// Función para actualizar el PWM según selección 
+void update_pwm_preview()
+{
+    uint8_t r = 0, g = 0, b = 0;
+
+    if (current_color == SELECT_R) r = duty_r;
+    if (current_color == SELECT_G) g = duty_g;
+    if (current_color == SELECT_B) b = duty_b;
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R, r);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G, g);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, b);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
+}
+
+//Variables de control para que los logs se actualicen solo cuando hay cambios 
+static int last_color = -1;
+static int last_pwm = -1;
+static system_mode_t last_mode = -1; 
+
+
 void app_main(void)
 {
     //-------------ADC1 Init---------------//
@@ -90,30 +178,10 @@ void app_main(void)
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, EXAMPLE_ADC1_CHAN0, &config));
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, EXAMPLE_ADC1_CHAN1, &config));
 
     //-------------ADC1 Calibration Init---------------//
     adc_cali_handle_t adc1_cali_chan0_handle = NULL;
-    adc_cali_handle_t adc1_cali_chan1_handle = NULL;
-    bool do_calibration1_chan0 = example_adc_calibration_init(ADC_UNIT_1, EXAMPLE_ADC1_CHAN0, EXAMPLE_ADC_ATTEN, &adc1_cali_chan0_handle);
-    bool do_calibration1_chan1 = example_adc_calibration_init(ADC_UNIT_1, EXAMPLE_ADC1_CHAN1, EXAMPLE_ADC_ATTEN, &adc1_cali_chan1_handle);
-
-#if EXAMPLE_USE_ADC2
-    //-------------ADC2 Init---------------//
-    adc_oneshot_unit_handle_t adc2_handle;
-    adc_oneshot_unit_init_cfg_t init_config2 = {
-        .unit_id = ADC_UNIT_2,
-        .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config2, &adc2_handle));
-
-    //-------------ADC2 Calibration Init---------------//
-    adc_cali_handle_t adc2_cali_handle = NULL;
-    bool do_calibration2 = example_adc_calibration_init(ADC_UNIT_2, EXAMPLE_ADC2_CHAN0, EXAMPLE_ADC_ATTEN, &adc2_cali_handle);
-
-    //-------------ADC2 Config---------------//
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc2_handle, EXAMPLE_ADC2_CHAN0, &config));
-#endif  //#if EXAMPLE_USE_ADC2
+    
 
     while (1) {
         ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, EXAMPLE_ADC1_CHAN0, &adc_raw[0][0]));
