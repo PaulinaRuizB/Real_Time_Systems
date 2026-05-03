@@ -76,11 +76,6 @@ typedef enum {
 
 system_mode_t mode = MODE_CONFIG;
 
-static int adc_raw[2][10];
-static int voltage[2][10];
-static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
-static void example_adc_calibration_deinit(adc_cali_handle_t handle);
-
 // Función para configurar el PWM 
 void pwm_init()
 {
@@ -157,12 +152,7 @@ void update_pwm_preview()
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
 }
 
-//Variables de control para que los logs se actualicen solo cuando hay cambios 
-static int last_color = -1;
-static int last_pwm = -1;
-static system_mode_t last_mode = -1; 
-
-
+// Funcionamiento principal 
 void app_main(void)
 {
     //-------------ADC1 Init---------------//
@@ -179,115 +169,82 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, EXAMPLE_ADC1_CHAN0, &config));
 
-    //-------------ADC1 Calibration Init---------------//
-    adc_cali_handle_t adc1_cali_chan0_handle = NULL;
+    pwm_init();
+    gpio_init_buttons();
     
+    int adc_raw;
+    //Variables de control para que los logs se actualicen solo cuando hay cambios 
+    static int last_color = -1;
+    static int last_pwm = -1;
+    static system_mode_t last_mode = -1; 
 
     while (1) {
-        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, EXAMPLE_ADC1_CHAN0, &adc_raw[0][0]));
-        ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN0, adc_raw[0][0]);
-        if (do_calibration1_chan0) {
-            ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc1_cali_chan0_handle, adc_raw[0][0], &voltage[0][0]));
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN0, voltage[0][0]);
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
 
-        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, EXAMPLE_ADC1_CHAN1, &adc_raw[0][1]));
-        ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN1, adc_raw[0][1]);
-        if (do_calibration1_chan1) {
-            ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc1_cali_chan1_handle, adc_raw[0][1], &voltage[0][1]));
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN1, voltage[0][1]);
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-#if EXAMPLE_USE_ADC2
-        ESP_ERROR_CHECK(adc_oneshot_read(adc2_handle, EXAMPLE_ADC2_CHAN0, &adc_raw[1][0]));
-        ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_2 + 1, EXAMPLE_ADC2_CHAN0, adc_raw[1][0]);
-        if (do_calibration2) {
-            ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc2_cali_handle, adc_raw[1][0], &voltage[1][0]));
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", ADC_UNIT_2 + 1, EXAMPLE_ADC2_CHAN0, voltage[1][0]);
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-#endif  //#if EXAMPLE_USE_ADC2
+        // 1. Leer Valor de ADC 
+        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, EXAMPLE_ADC1_CHAN0, &adc_raw));
+        uint8_t pwm_val = map_adc_to_pwm(adc_raw);
     }
 
-    //Tear Down
-    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc1_handle));
-    if (do_calibration1_chan0) {
-        example_adc_calibration_deinit(adc1_cali_chan0_handle);
-    }
-    if (do_calibration1_chan1) {
-        example_adc_calibration_deinit(adc1_cali_chan1_handle);
+    // ===== 2. Lectura de botones (edge-like con delay simple) =====
+    if (!gpio_get_level(BTN_R)) {
+        current_color = SELECT_R;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200)); // debounce básico
     }
 
-#if EXAMPLE_USE_ADC2
-    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc2_handle));
-    if (do_calibration2) {
-        example_adc_calibration_deinit(adc2_cali_handle);
-    }
-#endif //#if EXAMPLE_USE_ADC2
-}
-
-/*---------------------------------------------------------------
-        ADC Calibration
----------------------------------------------------------------*/
-static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle)
-{
-    adc_cali_handle_t handle = NULL;
-    esp_err_t ret = ESP_FAIL;
-    bool calibrated = false;
-
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-    if (!calibrated) {
-        ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
-        adc_cali_curve_fitting_config_t cali_config = {
-            .unit_id = unit,
-            .chan = channel,
-            .atten = atten,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
-        };
-        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
-        if (ret == ESP_OK) {
-            calibrated = true;
-        }
-    }
-#endif
-
-#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    if (!calibrated) {
-        ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
-        adc_cali_line_fitting_config_t cali_config = {
-            .unit_id = unit,
-            .atten = atten,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
-        };
-        ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
-        if (ret == ESP_OK) {
-            calibrated = true;
-        }
-    }
-#endif
-
-    *out_handle = handle;
-    if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Calibration Success");
-    } else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
-        ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
-    } else {
-        ESP_LOGE(TAG, "Invalid arg or no memory");
+    if (!gpio_get_level(BTN_G)) {
+        current_color = SELECT_G;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 
-    return calibrated;
-}
+    if (!gpio_get_level(BTN_B)) {
+        current_color = SELECT_B;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
 
-static void example_adc_calibration_deinit(adc_cali_handle_t handle)
-{
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-    ESP_LOGI(TAG, "deregister %s calibration scheme", "Curve Fitting");
-    ESP_ERROR_CHECK(adc_cali_delete_scheme_curve_fitting(handle));
+    if (!gpio_get_level(BTN_OK)) {
+        mode = MODE_SHOW;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
 
-#elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    ESP_LOGI(TAG, "deregister %s calibration scheme", "Line Fitting");
-    ESP_ERROR_CHECK(adc_cali_delete_scheme_line_fitting(handle));
-#endif
+    // ===== 3. Guardar valores (modo configuración) =====
+    if (mode == MODE_CONFIG) {
+        if (current_color == SELECT_R) duty_r = pwm_val;
+        if (current_color == SELECT_G) duty_g = pwm_val;
+        if (current_color == SELECT_B) duty_b = pwm_val;
+
+        update_pwm_preview();  // solo muestra el canal activo
+    }
+
+    // ===== 4. Mostrar mezcla =====
+    if (mode == MODE_SHOW) {
+        update_pwm();  // mezcla RGB completa
+    }
+
+    // Cambio de color
+    if (current_color != last_color) {
+        ESP_LOGI(TAG, "Color actual: %d", current_color);
+        last_color = current_color;
+    }
+
+    // Cambio de modo
+    if (mode != last_mode) {
+        if (mode == MODE_CONFIG)
+            ESP_LOGI(TAG, "Modo: CONFIG");
+        else
+            ESP_LOGI(TAG, "Modo: SHOW");
+
+        last_mode = mode;
+    }
+
+    // Cambio de PWM (con filtro anti-ruido)
+    if (abs(pwm_val - last_pwm) > 2) {
+        ESP_LOGI(TAG, "PWM: %d", pwm_val);
+        last_pwm = pwm_val;
+    }
+
+    // ===== 6. Delay del sistema =====
+    vTaskDelay(pdMS_TO_TICKS(50));
 }
