@@ -192,10 +192,10 @@ void app_main(void)
         if (T_celsius < 25) {
             set_color(0, 0, PWM_MAX);       // Azul
         }
-        else if (T_celsius <= 35) {
+        else if (25 < T_celsius && T_celsius <= 35) {
             set_color(0, PWM_MAX, 0);       // Verde
         }
-        else {
+        else if (T_celsius > 35){
             set_color(PWM_MAX, 0, 0);       // Rojo
         }
 
