@@ -10,11 +10,13 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "soc/soc_caps.h"
+#include "driver/ledc.h"
+#include "driver/gpio.h"
+#include "sdkconfig.h"
 #include "esp_log.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
-#include "driver/ledc.h"
 
 /*---------------------------------------------------------------
         ADC General Macros
@@ -147,13 +149,13 @@ void app_main(void)
 
     //-------------ADC1 Config---------------//
     adc_oneshot_chan_cfg_t config = {
-        .atten = EXAMPLE_ADC_ATTEN,
+        .atten = ADC_ATTEN,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config));
 
     //-------------ADC1 Calibration Init---------------//
-    bool do_calibration1_chan0 = example_adc_calibration_init(ADC_UNIT_1, ADC_CHANNEL,ADC_ATTEN, &adc_cali_handle);
+    bool do_calibration = example_adc_calibration_init(ADC_UNIT_1, ADC_CHANNEL,ADC_ATTEN, &adc_cali_handle);
     
     pwm_init();
 
@@ -162,18 +164,19 @@ void app_main(void)
         int raw, voltage_mv; 
 
         ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &raw));
-        ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN0, adc_raw[0][0]);
+        ESP_LOGI(TAG, "Raw: %d", raw);
         if (do_calibration) {
             ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc_cali_handle, raw, &voltage_mv));
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", ADC_UNIT_1 + 1, EXAMPLE_ADC1_CHAN0, voltage_mv);
+            ESP_LOGI(TAG, "Voltage: %d mV", voltage_mv);
         } else {
-            voltage_mv = raw * 3300 / 4095;
+            voltage_mv = (int)((float)raw * 3300.0 / 4095.0);
         }
 
         float Vout = voltage_mv / 1000.0;
 
         if (Vout <= 0.01 || Vout >= VCC - 0.01) {
             ESP_LOGW(TAG, "Voltaje fuera de rango");
+            vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
