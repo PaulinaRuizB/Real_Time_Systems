@@ -103,9 +103,9 @@ void pwm_init()
 void update_pwm()
 {
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R, duty_r);
-    ledc_update_duty(LLEDC_MODE, LEDC_CHANNEL_R);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R);
 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G duty_g);
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G, duty_g);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G);
 
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, duty_b);
@@ -148,6 +148,10 @@ void update_pwm_preview()
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
 }
 
+static int last_color = -1;
+static int last_pwm = -1;
+static system_mode_t last_mode = -1;
+
 // Funcionamiento principal 
 void app_main(void)
 {
@@ -163,23 +167,22 @@ void app_main(void)
         .atten = EXAMPLE_ADC_ATTEN,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, EXAMPLE_ADC1_CHAN0, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL, &config));
 
     pwm_init();
     gpio_init_buttons();
     
     int adc_raw;
     //Variables de control para que los logs se actualicen solo cuando hay cambios 
-    static int last_color = -1;
-    static int last_pwm = -1;
-    static system_mode_t last_mode = -1; 
+static int last_color = -1;
+static int last_pwm = -1;
+static int last_mode = -1; 
 
     while (1) {
 
         // 1. Leer Valor de ADC 
-        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, EXAMPLE_ADC1_CHAN0, &adc_raw));
+        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL, &adc_raw));
         uint8_t pwm_val = map_adc_to_pwm(adc_raw);
-    }
 
     // ===== 2. Lectura de botones (edge-like con delay simple) =====
     if (!gpio_get_level(BTN_R)) {
@@ -243,4 +246,5 @@ void app_main(void)
 
     // ===== 6. Delay del sistema =====
     vTaskDelay(pdMS_TO_TICKS(50));
+    }
 }
