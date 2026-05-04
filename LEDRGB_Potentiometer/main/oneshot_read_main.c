@@ -214,7 +214,7 @@ static int last_mode = -1;
         if (current_color == SELECT_G) duty_g = pwm_val;
         if (current_color == SELECT_B) duty_b = pwm_val;
 
-        update_pwm_preview();  // solo muestra el canal activo
+        update_pwm_preview();  //canal activo
     }
 
     // ===== 4. Mostrar mezcla =====
