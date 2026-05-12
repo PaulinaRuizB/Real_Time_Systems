@@ -121,3 +121,31 @@ void set_color(uint16_t r, uint16_t g, uint16_t b)
     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, b);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
 }
+
+// CALBIRACIÓN DEL ADC (NO SÉ SI ES NECESARIO XD)
+
+static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle)
+{
+    adc_cali_handle_t handle = NULL;
+
+    bool calibrated = false;
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+
+    adc_cali_curve_fitting_config_t cali_config = {
+        .unit_id = unit,
+        .chan = channel,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+
+    if (adc_cali_create_scheme_curve_fitting(&cali_config, &handle) == ESP_OK) {
+        calibrated = true;
+    }
+
+#endif
+
+    *out_handle = handle;
+
+    return calibrated;
+}
