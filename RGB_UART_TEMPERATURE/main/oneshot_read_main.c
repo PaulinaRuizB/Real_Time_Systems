@@ -149,3 +149,21 @@ static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel
 
     return calibrated;
 }
+
+void uart_init()
+{
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+     uart_driver_install(UART_NUM_0, BUF_SIZE * 2, 0, 0, NULL, 0);
+     uart_param_config(UART_NUM_0, &uart_config);
+
+    // Mensaje de bienvenida
+    uart_write_bytes(ECHO_UART_PORT_NUM , "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
+}
