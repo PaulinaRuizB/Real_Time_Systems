@@ -47,9 +47,9 @@
 
 //PINS LED RGB
 
-#define LED_R 3
-#define LED_G 6
-#define LED_B 7
+#define LED_R 4
+#define LED_G 5
+#define LED_B 6
 
 //UART CONFIG 
 
@@ -61,6 +61,7 @@
 #define ECHO_UART_PORT_NUM      0
 #define ECHO_UART_BAUD_RATE     (CONFIG_EXAMPLE_UART_BAUD_RATE)
 #define BUF_SIZE (1024)
+#define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
 
 // VARIABLES 
 
@@ -74,10 +75,12 @@ bool do_calibration = false;
 //TEMPERATURE LIMITS
 
 float rojo_min = 35.0;
+float rojo_max = 80.0; 
 
 float verde_min = 25.0;
 float verde_max = 35.0;
 
+float azul_min = 10.0;
 float azul_max = 25.0;
 
 // PWM 
@@ -314,20 +317,22 @@ void app_main(void)
 
         float T_celsius = T_kelvin - 273.15;
 
+        
+
         /* CONTROL RGB */
 
-        if (T_celsius < azul_max) {
+        if (T_celsius >= azul_min && T_celsius <= azul_max) {
 
             set_color(0, 0, pwm_intensity);
         }
 
-        else if (T_celsius >= verde_min &&
+        if (T_celsius >= verde_min &&
                  T_celsius <= verde_max) {
 
             set_color(0, pwm_intensity, 0);
         }
 
-        else if (T_celsius >= rojo_min) {
+        if (T_celsius >= rojo_min && T_celsius <= rojo_max) {
 
             set_color(pwm_intensity, 0, 0);
         }

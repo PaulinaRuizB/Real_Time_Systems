@@ -43,9 +43,9 @@
 
 //PINS LED RGB
 
-#define LED_R 3
-#define LED_G 6
-#define LED_B 7
+#define LED_R 4
+#define LED_G 5
+#define LED_B 6
 
 //UART CONFIG 
 
@@ -70,10 +70,12 @@ bool do_calibration = false;
 //TEMPERATURE LIMITS
 
 float rojo_min = 35.0;
+float rojo_max = 80; 
 
 float verde_min = 25.0;
 float verde_max = 35.0;
 
+float azul_min = 10;
 float azul_max = 25.0;
 
 // PWM 
@@ -125,7 +127,7 @@ void set_color(uint16_t r, uint16_t g, uint16_t b)
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
 }
 
-// CALBIRACIÓN DEL ADC (NO SÉ SI ES NECESARIO XD)
+// CALBIRACIÓN DEL ADC
 
 static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle)
 {
@@ -182,28 +184,33 @@ void process_uart_command(char *cmd)
     // LÍMITES DE TEMPERATURA
     if (sscanf(cmd, "ROJO_MIN_%d", &value) == 1) {
         rojo_min = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MIN = %.1f", rojo_min);
+        ESP_LOGI(TAG, "Nuevo ROJO_MIN = %.1f", rojo_min);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MIN configurado\n", strlen("OK: ROJO_MIN configurado\n"));
     } 
     else if (sscanf(cmd, "VERDE_MIN_%d", &value) == 1) {
         verde_min = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MIN = %.1f", verde_min);
+        ESP_LOGI(TAG, "Nuevo VERDE_MIN = %.1f", verde_min);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MIN configurado\n", strlen("OK: VERDE_MIN configurado\n"));
     } 
     else if (sscanf(cmd, "VERDE_MAX_%d", &value) == 1) {
         verde_max = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MAX = %.1f", verde_max);
+        ESP_LOGI(TAG, "Nuevo VERDE_MAX = %.1f", verde_max);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MAX configurado\n", strlen("OK: VERDE_MAX configurado\n"));
     } 
     else if (sscanf(cmd, "AZUL_MAX_%d", &value) == 1) {
         azul_max = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo AZUL_MAX = %.1f", azul_max);
+        ESP_LOGI(TAG, "Nuevo AZUL_MAX = %.1f", azul_max);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MAX configurado\n", strlen("OK: AZUL_MAX configurado\n"));
     } 
+    else if (sscanf(cmd, "AZUL_MIN_%d", &value) == 1) {
+        azul_min = (float)value;
+        ESP_LOGI(TAG, "AZUL_MIN = %.1f", azul_min);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MIN configurado\n", strlen("OK: AZUL_MIN configurado\n"));
+    }
     else if (sscanf(cmd, "PWM_%d", &value) == 1) {
         if (value >= 0 && value <= 100) {
             pwm_intensity = (value * PWM_MAX) / 100;
-            ESP_LOGI(TAG, "¡Éxito! Intensidad LED al %d%%", value);
+            ESP_LOGI(TAG, "Intensidad LED al %d%%", value);
             char pwm_msg[50];
             sprintf(pwm_msg, "OK: PWM configurado al %d%%\n", value);
             uart_write_bytes(ECHO_UART_PORT_NUM , pwm_msg, strlen(pwm_msg));
@@ -310,18 +317,18 @@ void app_main(void)
 
         /* CONTROL RGB */
 
-        if (T_celsius < azul_max) {
+         if (T_celsius >= azul_min && T_celsius <= azul_max) {
 
             set_color(0, 0, pwm_intensity);
         }
 
-        else if (T_celsius >= verde_min &&
+        if (T_celsius >= verde_min &&
                  T_celsius <= verde_max) {
 
             set_color(0, pwm_intensity, 0);
         }
 
-        else if (T_celsius >= rojo_min) {
+        if (T_celsius >= rojo_min && T_celsius <= rojo_max) {
 
             set_color(pwm_intensity, 0, 0);
         }
