@@ -238,3 +238,94 @@ void uart_task(void *arg)
         }
     }
 }
+
+void app_main(void)
+{
+    /* ADC INIT */
+
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+    };
+
+    adc_oneshot_new_unit(&init_config1, &adc_handle);
+
+    adc_oneshot_chan_cfg_t config = {
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+
+    adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config);
+
+    do_calibration = example_adc_calibration_init(
+        ADC_UNIT_1,
+        ADC_CHANNEL,
+        ADC_ATTEN,
+        &adc_cali_handle);
+
+    // Funciones y tarea para el UART
+
+    pwm_init();
+
+    uart_init();
+
+    xTaskCreate(uart_task, "uart_task", 4096, NULL, 10, NULL);
+
+   while (1) {
+
+        int raw;
+        int voltage_mv;
+
+        adc_oneshot_read(adc_handle, ADC_CHANNEL, &raw);
+
+        if (do_calibration) {
+
+            adc_cali_raw_to_voltage(adc_cali_handle,
+                raw,
+                &voltage_mv);
+        }
+        else {
+
+            voltage_mv = (raw * 3300) / 4095;
+        }
+
+        float Vout = voltage_mv / 1000.0;
+
+        if (Vout <= 0.01 || Vout >= VCC - 0.01) {
+
+            ESP_LOGW(TAG, "Voltaje fuera de rango");
+
+            vTaskDelay(pdMS_TO_TICKS(100));
+
+            continue;
+        }
+
+        float R_ntc = R_FIXED * (Vout / (VCC - Vout));
+
+        float T_kelvin =
+            1.0 /
+            ((1.0 / T0) +
+             (1.0 / BETA) * log(R_ntc / R0));
+
+        float T_celsius = T_kelvin - 273.15;
+
+        /* CONTROL RGB */
+
+        if (T_celsius < azul_max) {
+
+            set_color(0, 0, pwm_intensity);
+        }
+
+        else if (T_celsius >= verde_min &&
+                 T_celsius <= verde_max) {
+
+            set_color(0, pwm_intensity, 0);
+        }
+
+        else if (T_celsius >= rojo_min) {
+
+            set_color(pwm_intensity, 0, 0);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
