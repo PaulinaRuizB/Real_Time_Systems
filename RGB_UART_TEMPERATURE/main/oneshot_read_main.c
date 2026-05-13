@@ -66,3 +66,15 @@ adc_oneshot_unit_handle_t adc_handle;
 adc_cali_handle_t adc_cali_handle;
 
 bool do_calibration = false;
+
+//TEMPERATURE LIMITS
+
+float rojo_min = 35.0;
+
+float verde_min = 25.0;
+float verde_max = 35.0;
+
+float azul_max = 25.0;
+
+// PWM 
+uint16_t pwm_intensity = PWM_MAX;
