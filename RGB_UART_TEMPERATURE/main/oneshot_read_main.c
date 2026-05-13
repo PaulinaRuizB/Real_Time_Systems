@@ -152,3 +152,89 @@ static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel
 
     return calibrated;
 }
+
+void uart_init()
+{
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+     uart_driver_install(UART_NUM_0, BUF_SIZE * 2, 0, 0, NULL, 0);
+     uart_param_config(UART_NUM_0, &uart_config);
+
+    // Mensaje de bienvenida
+    uart_write_bytes(ECHO_UART_PORT_NUM , "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
+}
+
+//PROCESAR MENSAJES DE UART
+void process_uart_command(char *cmd)
+{
+    
+    cmd[strcspn(cmd, "\r\n")] = 0;
+
+    int value;
+    
+    // LÍMITES DE TEMPERATURA
+    if (sscanf(cmd, "ROJO_MIN_%d", &value) == 1) {
+        rojo_min = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MIN = %.1f", rojo_min);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MIN configurado\n", strlen("OK: ROJO_MIN configurado\n"));
+    } 
+    else if (sscanf(cmd, "VERDE_MIN_%d", &value) == 1) {
+        verde_min = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MIN = %.1f", verde_min);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MIN configurado\n", strlen("OK: VERDE_MIN configurado\n"));
+    } 
+    else if (sscanf(cmd, "VERDE_MAX_%d", &value) == 1) {
+        verde_max = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MAX = %.1f", verde_max);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MAX configurado\n", strlen("OK: VERDE_MAX configurado\n"));
+    } 
+    else if (sscanf(cmd, "AZUL_MAX_%d", &value) == 1) {
+        azul_max = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo AZUL_MAX = %.1f", azul_max);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MAX configurado\n", strlen("OK: AZUL_MAX configurado\n"));
+    } 
+    else if (sscanf(cmd, "PWM_%d", &value) == 1) {
+        if (value >= 0 && value <= 100) {
+            pwm_intensity = (value * PWM_MAX) / 100;
+            ESP_LOGI(TAG, "¡Éxito! Intensidad LED al %d%%", value);
+            char pwm_msg[50];
+            sprintf(pwm_msg, "OK: PWM configurado al %d%%\n", value);
+            uart_write_bytes(ECHO_UART_PORT_NUM , pwm_msg, strlen(pwm_msg));
+        } else {
+            ESP_LOGW(TAG, "Error: El PWM debe estar entre 0 y 100");
+            uart_write_bytes(ECHO_UART_PORT_NUM , "ERROR: PWM debe estar entre 0 y 100\n", strlen("ERROR: PWM debe estar entre 0 y 100\n"));
+        }
+    } 
+    else {
+        
+        ESP_LOGW(TAG, "No reconozco el comando: [%s]", cmd);
+    }
+}
+
+// TAREA PARA EL UART
+void uart_task(void *arg)
+{
+    uint8_t *data = (uint8_t *) malloc(BUF_SIZE);
+
+    while (1) {
+        // Leemos como en el ejemplo de Echo
+        int len = uart_read_bytes(ECHO_UART_PORT_NUM, data, BUF_SIZE - 1, 20 / portTICK_PERIOD_MS);
+
+        if (len > 0) {
+            data[len] = '\0'; // Terminamos la cadena de texto
+            
+            // Hacemos un "ECHO": devolvemos el texto a YAT para confirmar recepción
+            uart_write_bytes(ECHO_UART_PORT_NUM, (const char *) data, len);
+            
+            // Procesamos el comando
+            process_uart_command((char *)data);
+        }
+    }
+}
