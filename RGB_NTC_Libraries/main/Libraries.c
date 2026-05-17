@@ -44,7 +44,30 @@ static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel
         return calibrated; 
     }
 
-    
+// ADC Init
+
+void adc_init()
+{
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+    };
+
+    adc_oneshot_new_unit(&init_config1, &adc_handle);
+
+    adc_oneshot_chan_cfg_t config = {
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+
+    adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config);
+
+    do_calibration = example_adc_calibration_init(
+        ADC_UNIT_1,
+        ADC_CHANNEL,
+        ADC_ATTEN,
+        &adc_cali_handle);
+}
+
 // FUNCIÓN CONFIG PWM
 void pwm_init()
 {
@@ -97,3 +120,73 @@ void uart_init()
     uart_write_bytes(ECHO_UART_PORT_NUM , "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
 }
 
+// INIT Sistema (pwm, uart, adc)
+
+void system_init() { 
+    pwm_init(); 
+    uart_init(); 
+    adc_init(); 
+    temp_queue = xQueueCreate( 5, sizeof(float)); 
+    cmd_queue = xQueueCreate( 5, BUF_SIZE); 
+}
+
+//Control RGB
+void set_color(uint16_t r, uint16_t g, uint16_t b)
+{
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R, r);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G, g);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B, b);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B);
+}
+
+float ntc_calculate_temperature(){
+    int raw;
+        int voltage_mv;
+
+        adc_oneshot_read(adc_handle, ADC_CHANNEL, &raw);
+
+        if (do_calibration) {
+
+            adc_cali_raw_to_voltage(adc_cali_handle,
+                raw,
+                &voltage_mv);
+        }
+        else {
+
+            voltage_mv = (raw * 3300) / 4095;
+        }
+
+        float Vout = voltage_mv / 1000.0;
+
+        char voltage_msg[50];
+        sprintf(voltage_msg, "Voltaje: %.2f V\n", Vout);
+        uart_write_bytes(ECHO_UART_PORT_NUM, voltage_msg, strlen(voltage_msg));
+
+        if (Vout <= 0.01 || Vout >= VCC - 0.01) {
+
+            ESP_LOGW(TAG, "Voltaje fuera de rango");
+
+            vTaskDelay(pdMS_TO_TICKS(100));
+
+            continue;
+        }
+
+        ESP_LOGI(TAG, "V: %.2f V", Vout);
+        
+        float R_ntc = R_FIXED * (Vout / (VCC - Vout));  
+
+        float T_kelvin =
+            1.0 /
+            ((1.0 / T0) +
+             (1.0 / BETA) * log(R_ntc / R0));
+
+        float T_celsius = T_kelvin - 273.15;
+
+        char temperature_msg[50];
+        sprintf(temperature_msg, "Temperatura: %.2f °C\n", T_celsius);
+        uart_write_bytes(ECHO_UART_PORT_NUM, temperature_msg, strlen(temperature_msg));
+}
