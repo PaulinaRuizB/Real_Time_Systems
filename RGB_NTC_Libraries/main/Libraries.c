@@ -106,11 +106,11 @@ void uart_init()
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-     uart_driver_install(UART_NUM_0, BUF_SIZE * 2, 0, 0, NULL, 0);
-     uart_param_config(UART_NUM_0, &uart_config);
+     uart_driver_install(ECHO_UART_PORT_NUM , BUF_SIZE * 2, 0, 0, NULL, 0);
+     uart_param_config(ECHO_UART_PORT_NUM , &uart_config);
 
     // Mensaje de bienvenida
-    uart_write_bytes(ECHO_UART_PORT_NUM , "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
+    uart_write_bytes(ECHO_UART_PORT_NUM, "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
 }
 
 // INIT Sistema (pwm, uart, adc)
