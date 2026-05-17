@@ -1,3 +1,4 @@
+#include <Libraries.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,10 +18,7 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 
-/*---------------------------------------------------------------
-                        ADC CONFIG
----------------------------------------------------------------*/
-
+//ADC CONFIG
 #define ADC_CHANNEL        ADC_CHANNEL_2
 #define ADC_ATTEN          ADC_ATTEN_DB_12
 
@@ -30,10 +28,7 @@
 #define T0          298.15
 #define BETA        3470.0
 
-/*---------------------------------------------------------------
-                        PWM CONFIG
----------------------------------------------------------------*/
-
+//PWM CONFIG
 #define LEDC_TIMER      LEDC_TIMER_0
 #define LEDC_MODE       LEDC_LOW_SPEED_MODE
 #define LEDC_DUTY_RES   LEDC_TIMER_10_BIT
@@ -194,6 +189,11 @@ void process_uart_command(char *cmd)
         ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MIN = %.1f", rojo_min);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MIN configurado\n", strlen("OK: ROJO_MIN configurado\n"));
     } 
+    else if (sscanf(cmd, "ROJO_MAX_%d", &value) == 1) {
+        rojo_max = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MAX = %.1f", rojo_max);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MAX configurado\n", strlen("OK: ROJO_MAX configurado\n"));
+    } 
     else if (sscanf(cmd, "VERDE_MIN_%d", &value) == 1) {
         verde_min = (float)value;
         ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MIN = %.1f", verde_min);
@@ -203,6 +203,11 @@ void process_uart_command(char *cmd)
         verde_max = (float)value;
         ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MAX = %.1f", verde_max);
         uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MAX configurado\n", strlen("OK: VERDE_MAX configurado\n"));
+    } 
+    else if (sscanf(cmd, "AZUL_MIN_%d", &value) == 1) {
+        azul_min = (float)value;
+        ESP_LOGI(TAG, "¡Éxito! Nuevo AZUL_MIN = %.1f", azul_min);
+        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MIN configurado\n", strlen("OK: AZUL_MIN configurado\n"));
     } 
     else if (sscanf(cmd, "AZUL_MAX_%d", &value) == 1) {
         azul_max = (float)value;
@@ -299,6 +304,10 @@ void app_main(void)
 
         float Vout = voltage_mv / 1000.0;
 
+        char voltage_msg[50];
+        sprintf(voltage_msg, "Voltaje: %.2f V\n", Vout);
+        uart_write_bytes(ECHO_UART_PORT_NUM, voltage_msg, strlen(voltage_msg));
+
         if (Vout <= 0.01 || Vout >= VCC - 0.01) {
 
             ESP_LOGW(TAG, "Voltaje fuera de rango");
@@ -308,7 +317,9 @@ void app_main(void)
             continue;
         }
 
-        float R_ntc = R_FIXED * (Vout / (VCC - Vout));
+        ESP_LOGI(TAG, "V: %.2f V", Vout);
+        
+        float R_ntc = R_FIXED * (Vout / (VCC - Vout));  
 
         float T_kelvin =
             1.0 /
@@ -317,25 +328,43 @@ void app_main(void)
 
         float T_celsius = T_kelvin - 273.15;
 
-        
+        char temperature_msg[50];
+        sprintf(temperature_msg, "Temperatura: %.2f °C\n", T_celsius);
+        uart_write_bytes(ECHO_UART_PORT_NUM, temperature_msg, strlen(temperature_msg));
 
-        /* CONTROL RGB */
+        /* CONTROL RGB MEZCLADO */
 
-        if (T_celsius >= azul_min && T_celsius <= azul_max) {
+        uint16_t r = 0;
+        uint16_t g = 0;
+        uint16_t b = 0;
 
-            set_color(0, 0, pwm_intensity);
+        /* Azul */
+
+        if (T_celsius >= azul_min &&
+            T_celsius <= azul_max) {
+
+            b = pwm_intensity;
         }
+
+        /* Verde */
 
         if (T_celsius >= verde_min &&
-                 T_celsius <= verde_max) {
+            T_celsius <= verde_max) {
 
-            set_color(0, pwm_intensity, 0);
+            g = pwm_intensity;
         }
 
-        if (T_celsius >= rojo_min && T_celsius <= rojo_max) {
+        /* Rojo */
 
-            set_color(pwm_intensity, 0, 0);
+        if (T_celsius >= rojo_min &&
+            T_celsius <= rojo_max) {
+
+            r = pwm_intensity;
         }
+
+        /* Aplicar mezcla final */
+
+        set_color(r, g, b);
 
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
