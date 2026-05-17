@@ -15,6 +15,19 @@
 #include "esp_adc/adc_cali.h" 
 #include "esp_adc/adc_cali_scheme.h"
 
+//UART CONFIG 
+
+#define ECHO_TEST_TXD (CONFIG_EXAMPLE_UART_TXD)
+#define ECHO_TEST_RXD (CONFIG_EXAMPLE_UART_RXD)
+#define ECHO_TEST_RTS (UART_PIN_NO_CHANGE)
+#define ECHO_TEST_CTS (UART_PIN_NO_CHANGE)
+
+#define ECHO_UART_PORT_NUM      0
+#define ECHO_UART_BAUD_RATE     (CONFIG_EXAMPLE_UART_BAUD_RATE)
+#define BUF_SIZE (1024)
+#define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
+
+
 // Estructura para configurar los limites de cada color 
 typedef struct { 
     float rojo_min; 

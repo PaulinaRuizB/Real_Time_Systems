@@ -46,143 +46,24 @@
 #define LED_G 5
 #define LED_B 6
 
-//UART CONFIG 
 
-#define ECHO_TEST_TXD (CONFIG_EXAMPLE_UART_TXD)
-#define ECHO_TEST_RXD (CONFIG_EXAMPLE_UART_RXD)
-#define ECHO_TEST_RTS (UART_PIN_NO_CHANGE)
-#define ECHO_TEST_CTS (UART_PIN_NO_CHANGE)
 
-#define ECHO_UART_PORT_NUM      0
-#define ECHO_UART_BAUD_RATE     (CONFIG_EXAMPLE_UART_BAUD_RATE)
-#define BUF_SIZE (1024)
-#define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
-
-//PROCESAR MENSAJES DE UART
-void process_uart_command(char *cmd)
-{
+void app_main(void) { 
     
-    cmd[strcspn(cmd, "\r\n")] = 0;
-
-    int value;
+    system_init(); 
     
-    // LÍMITES DE TEMPERATURA
-    if (sscanf(cmd, "ROJO_MIN_%d", &value) == 1) {
-        rojo_min = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MIN = %.1f", rojo_min);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MIN configurado\n", strlen("OK: ROJO_MIN configurado\n"));
-    } 
-    else if (sscanf(cmd, "ROJO_MAX_%d", &value) == 1) {
-        rojo_max = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo ROJO_MAX = %.1f", rojo_max);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: ROJO_MAX configurado\n", strlen("OK: ROJO_MAX configurado\n"));
-    } 
-    else if (sscanf(cmd, "VERDE_MIN_%d", &value) == 1) {
-        verde_min = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MIN = %.1f", verde_min);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MIN configurado\n", strlen("OK: VERDE_MIN configurado\n"));
-    } 
-    else if (sscanf(cmd, "VERDE_MAX_%d", &value) == 1) {
-        verde_max = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo VERDE_MAX = %.1f", verde_max);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: VERDE_MAX configurado\n", strlen("OK: VERDE_MAX configurado\n"));
-    } 
-    else if (sscanf(cmd, "AZUL_MIN_%d", &value) == 1) {
-        azul_min = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo AZUL_MIN = %.1f", azul_min);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MIN configurado\n", strlen("OK: AZUL_MIN configurado\n"));
-    } 
-    else if (sscanf(cmd, "AZUL_MAX_%d", &value) == 1) {
-        azul_max = (float)value;
-        ESP_LOGI(TAG, "¡Éxito! Nuevo AZUL_MAX = %.1f", azul_max);
-        uart_write_bytes(ECHO_UART_PORT_NUM , "OK: AZUL_MAX configurado\n", strlen("OK: AZUL_MAX configurado\n"));
-    } 
-    else if (sscanf(cmd, "PWM_%d", &value) == 1) {
-        if (value >= 0 && value <= 100) {
-            pwm_intensity = (value * PWM_MAX) / 100;
-            ESP_LOGI(TAG, "¡Éxito! Intensidad LED al %d%%", value);
-            char pwm_msg[50];
-            sprintf(pwm_msg, "OK: PWM configurado al %d%%\n", value);
-            uart_write_bytes(ECHO_UART_PORT_NUM , pwm_msg, strlen(pwm_msg));
-        } else {
-            ESP_LOGW(TAG, "Error: El PWM debe estar entre 0 y 100");
-            uart_write_bytes(ECHO_UART_PORT_NUM , "ERROR: PWM debe estar entre 0 y 100\n", strlen("ERROR: PWM debe estar entre 0 y 100\n"));
-        }
-    } 
-    else {
+    static rgb_config_t rgb_config = { 
         
-        ESP_LOGW(TAG, "No reconozco el comando: [%s]", cmd);
-    }
-}
-
-// TAREA PARA EL UART
-void uart_task(void *arg)
-{
-    uint8_t *data = (uint8_t *) malloc(BUF_SIZE);
-
-    while (1) {
-        // Leemos como en el ejemplo de Echo
-        int len = uart_read_bytes(ECHO_UART_PORT_NUM, data, BUF_SIZE - 1, 20 / portTICK_PERIOD_MS);
-
-        if (len > 0) {
-            data[len] = '\0'; // Terminamos la cadena de texto
-            
-            // Hacemos un "ECHO": devolvemos el texto a YAT para confirmar recepción
-            uart_write_bytes(ECHO_UART_PORT_NUM, (const char *) data, len);
-            
-            // Procesamos el comando
-            process_uart_command((char *)data);
-        }
-    }
-}
-
-void app_main(void)
-{
-
-    /* INIT */
-
-    pwm_init();
-
-    uart_init();
-
-    xTaskCreate(uart_task, "uart_task", 4096, NULL, 10, NULL);
-
-    while (1) {
-
-        /* CONTROL RGB MEZCLADO */
-
-        uint16_t r = 0;
-        uint16_t g = 0;
-        uint16_t b = 0;
-
-        /* Azul */
-
-        if (T_celsius >= azul_min &&
-            T_celsius <= azul_max) {
-
-            b = pwm_intensity;
-        }
-
-        /* Verde */
-
-        if (T_celsius >= verde_min &&
-            T_celsius <= verde_max) {
-
-            g = pwm_intensity;
-        }
-
-        /* Rojo */
-
-        if (T_celsius >= rojo_min &&
-            T_celsius <= rojo_max) {
-
-            r = pwm_intensity;
-        }
-
-        /* Aplicar mezcla final */
-
-        set_color(r, g, b);
-
-        vTaskDelay(pdMS_TO_TICKS(2000));
-    }
+        .rojo_min = 35.0, 
+        .rojo_max = 80.0, 
+        .verde_min = 25.0, 
+        .verde_max = 35.0, 
+        .azul_min = 10.0, 
+        .azul_max = 25.0, 
+        .pwm_intensity = PWM_MAX }; 
+        
+        xTaskCreate(sensor_task, "sensor_task", 4096, NULL, 5, NULL); 
+        xTaskCreate(rgb_task, "rgb_task", 4096, &rgb_config, 5, NULL); 
+        xTaskCreate(uart_task, "uart_task", 4096, NULL, 5, NULL); 
+        xTaskCreate(command_task, "command_task", 4096, &rgb_config, 5, NULL);
 }
