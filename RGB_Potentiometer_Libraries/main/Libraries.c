@@ -19,7 +19,10 @@
 #include "esp_adc/adc_cali_scheme.h"
 
 //ADC CONFIG
-#define ADC_CHANNEL        ADC_CHANNEL_2
+// ADC Channel 2 (GPIO2) para el sensor NTC de temperatura
+#define ADC_CHANNEL_NTC    ADC_CHANNEL_2
+// ADC Channel 1 (GPIO1) para el potenciómetro
+#define ADC_CHANNEL_POT    ADC_CHANNEL_1
 #define ADC_ATTEN          ADC_ATTEN_DB_12
 
 #define VCC        3.3
@@ -116,13 +119,21 @@ void adc_init()
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
-    adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &config);
+    // Configure NTC and potentiometer channels on the same ADC unit
+    adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_NTC, &config);
+    adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_POT, &config);
 
     do_calibration = example_adc_calibration_init(
         ADC_UNIT_1,
-        ADC_CHANNEL,
+        ADC_CHANNEL_NTC,
         ADC_ATTEN,
         &adc_cali_handle);
+
+    if (do_calibration) {
+        ESP_LOGI(TAG, "ADC calibration enabled for NTC channel");
+    } else {
+        ESP_LOGW(TAG, "ADC calibration unavailable; using raw conversion for NTC");
+    }
 }
 
 // FUNCIÓN CONFIG PWM ambos funcionamientos de LEDS
@@ -219,19 +230,18 @@ float ntc_calculate_temperature(){
     int raw;
         int voltage_mv;
 
-        adc_oneshot_read(adc_handle, ADC_CHANNEL, &raw);
+        adc_oneshot_read(adc_handle, ADC_CHANNEL_NTC, &raw);
 
         if (do_calibration) {
-
-            adc_cali_raw_to_voltage(adc_cali_handle,
-                raw,
-                &voltage_mv);
-        }
-        else {
-
+            if (adc_cali_raw_to_voltage(adc_cali_handle, raw, &voltage_mv) != ESP_OK) {
+                ESP_LOGW(TAG, "ADC calibration read failed, using raw conversion");
+                voltage_mv = (raw * 3300) / 4095;
+            }
+        } else {
             voltage_mv = (raw * 3300) / 4095;
         }
 
+        ESP_LOGI(TAG, "ADC raw=%d mV=%d", raw, voltage_mv);
         float Vout = voltage_mv / 1000.0;
 
         char voltage_msg[50];
@@ -489,8 +499,8 @@ static int last_mode = -1;
 
     while (1) {
 
-        // 1. Leer Valor de ADC 
-        ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &adc_raw));
+        // 1. Leer valor del potenciómetro en ADC_CHANNEL_POT
+        ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL_POT, &adc_raw));
         uint8_t pwm_val = map_adc_to_pwm(adc_raw);
 
     // ===== 2. Lectura de botones (edge-like con delay simple) =====
