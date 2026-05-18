@@ -47,7 +47,6 @@
 #define LED_B 6
 
 
-
 void app_main(void) { 
     
     system_init(); 
