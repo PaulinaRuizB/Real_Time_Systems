@@ -54,11 +54,18 @@ float ntc_calculate_temperature(void);
 
 void process_uart_command(char *cmd, rgb_config_t *config);
 
+void update_pwm_preview();
+void update_pwm();
+uint8_t map_adc_to_pwm(int adc_raw);
+void gpio_init_buttons();
+
 // Tareas 
  void sensor_task(void *arg); 
  void rgb_task(void *arg); 
  void uart_task(void *arg); 
  void command_task(void *arg);
+
+ void potentiometer_task(void *arg);
 
 #endif 
 

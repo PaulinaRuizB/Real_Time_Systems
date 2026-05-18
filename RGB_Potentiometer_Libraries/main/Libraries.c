@@ -53,7 +53,7 @@
 #define LED_B 6
 
 #define LED_R1 7
-#define LED_G2 6
+#define LED_G2 9
 #define LED_B3 8
 
 // Botones de control 
@@ -444,13 +444,116 @@ void update_pwm_preview()
     if (current_color == SELECT_R) r = duty_r;
     if (current_color == SELECT_G) g = duty_g;
     if (current_color == SELECT_B) b = duty_b;
+    // Scale 8-bit preview values (0-255) to LEDC resolution (0-PWM_MAX)
+    uint32_t duty_r_scaled = (r * PWM_MAX) / 255;
+    uint32_t duty_g_scaled = (g * PWM_MAX) / 255;
+    uint32_t duty_b_scaled = (b * PWM_MAX) / 255;
 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R1, r);
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R1, duty_r_scaled);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R1);
 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G2, g);
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G2, duty_g_scaled);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G2);
 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B3, b);
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B3, duty_b_scaled);
     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B3);
+}
+
+// Update full RGB mix for LED2 (potentiometer) using stored duty_* values
+void update_pwm()
+{
+    uint32_t duty_r_scaled = (duty_r * PWM_MAX) / 255;
+    uint32_t duty_g_scaled = (duty_g * PWM_MAX) / 255;
+    uint32_t duty_b_scaled = (duty_b * PWM_MAX) / 255;
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R1, duty_r_scaled);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R1);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G2, duty_g_scaled);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G2);
+
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B3, duty_b_scaled);
+    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B3);
+}
+
+void potentiometer_task(void *arg)
+{
+    pwm_init();
+    gpio_init_buttons();
+    
+    int adc_raw;
+    //Variables de control para que los logs se actualicen solo cuando hay cambios 
+static int last_color = -1;
+static int last_pwm = -1;
+static int last_mode = -1; 
+
+    while (1) {
+
+        // 1. Leer Valor de ADC 
+        ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL, &adc_raw));
+        uint8_t pwm_val = map_adc_to_pwm(adc_raw);
+
+    // ===== 2. Lectura de botones (edge-like con delay simple) =====
+    if (!gpio_get_level(BTN_R)) {
+        current_color = SELECT_R;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200)); // debounce básico
+    }
+
+    if (!gpio_get_level(BTN_G)) {
+        current_color = SELECT_G;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+
+    if (!gpio_get_level(BTN_B)) {
+        current_color = SELECT_B;
+        mode = MODE_CONFIG;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+
+    if (!gpio_get_level(BTN_OK)) {
+        mode = MODE_SHOW;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+
+    // ===== 3. Guardar valores (modo configuración) =====
+    if (mode == MODE_CONFIG) {
+        if (current_color == SELECT_R) duty_r = pwm_val;
+        if (current_color == SELECT_G) duty_g = pwm_val;
+        if (current_color == SELECT_B) duty_b = pwm_val;
+
+        update_pwm_preview();  //canal activo
+    }
+
+    // ===== 4. Mostrar mezcla =====
+    if (mode == MODE_SHOW) {
+        update_pwm();  // mezcla RGB completa
+    }
+
+    // Cambio de color
+    if (current_color != last_color) {
+        ESP_LOGI(TAG, "Color actual: %d", current_color);
+        last_color = current_color;
+    }
+
+    // Cambio de modo
+    if (mode != last_mode) {
+        if (mode == MODE_CONFIG)
+            ESP_LOGI(TAG, "Modo: CONFIG");
+        else
+            ESP_LOGI(TAG, "Modo: SHOW");
+
+        last_mode = mode;
+    }
+
+    // Cambio de PWM (con filtro anti-ruido)
+    if (abs(pwm_val - last_pwm) > 2) {
+        ESP_LOGI(TAG, "PWM: %d", pwm_val);
+        last_pwm = pwm_val;
+    }
+
+    // ===== 6. Delay del sistema =====
+    vTaskDelay(pdMS_TO_TICKS(50));
+    }
 }
