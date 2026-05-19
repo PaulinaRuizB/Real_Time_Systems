@@ -1,62 +1,250 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- | -------- |
+# NTC RGB Controller with ESP-IDF and FreeRTOS
 
-# ADC Single Read Example
+## Overview
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+This project implements a multitask embedded system using **ESP32-C6**, **ESP-IDF**, and **FreeRTOS**.
 
-This example demonstrates the following:
+The system combines two independent RGB control subsystems running concurrently:
 
-- How to obtain a oneshot ADC reading from a GPIO pin using the ADC oneshot mode driver
-- How to use the ADC Calibration functions to obtain a calibrated result (in mV)
+1. **Automatic RGB temperature control**
 
-## How to use example
+   * Uses an NTC thermistor.
+   * Changes RGB color according to temperature ranges.
+   * Configurable in real time through UART commands.
 
-### Hardware Required
+2. **Manual RGB control**
 
-* A development board with ESP SoC
-* A USB cable for power supply and programming
+   * Uses a potentiometer and push buttons.
+   * Allows selecting RGB channels individually.
+   * Adjusts PWM intensity dynamically.
 
-In this example, you need to connect a voltage source (e.g. a DC power supply) to the GPIO pins specified in `oneshot_read_main.c` (see the macros defined on the top of the source file). Feel free to modify the pin setting.
+The architecture was designed using:
 
-### Build and Flash
+* FreeRTOS tasks
+* Queues
+* Modular programming
+* Hardware abstraction
 
-Build the project and flash it to the board, then run monitor tool to view serial output:
+---
 
+# Features
+
+* ESP-IDF framework
+* FreeRTOS multitasking
+* UART command interface
+* ADC oneshot driver
+* ADC calibration support
+* PWM LED control using LEDC
+* Dynamic RGB configuration
+* Temperature monitoring using NTC
+* Real-time RGB intensity control
+* Queue-based inter-task communication
+
+---
+
+# Hardware Requirements
+
+## Main Components
+
+* ESP32-C6
+* NTC Thermistor (4.7kΩ)
+* Fixed resistor (4.7kΩ)
+* RGB LED (automatic mode)
+* RGB LED (manual mode)
+* Potentiometer
+* Push buttons
+* USB-UART connection
+
+---
+
+# System Architecture
+
+## FreeRTOS Tasks
+
+| Task                 | Function                   |
+| -------------------- | -------------------------- |
+| `sensor_task`        | Reads NTC temperature      |
+| `rgb_task`           | Controls automatic RGB LED |
+| `uart_task`          | Receives UART commands     |
+| `command_task`       | Processes UART commands    |
+| `potentiometer_task` | Controls manual RGB LED    |
+
+---
+
+# Inter-Task Communication
+
+The system uses FreeRTOS queues for synchronization and communication.
+
+| Queue        | Purpose                  |
+| ------------ | ------------------------ |
+| `temp_queue` | Sends temperature values |
+| `cmd_queue`  | Sends UART commands      |
+
+---
+
+# Temperature Control Logic
+
+The NTC subsystem:
+
+1. Reads ADC voltage.
+2. Calculates thermistor resistance.
+3. Computes temperature using the Beta equation.
+4. Activates RGB channels depending on configured ranges.
+
+## Example
+
+| Temperature Range | Color |
+| ----------------- | ----- |
+| 10°C – 25°C       | Blue  |
+| 25°C – 35°C       | Green |
+| 35°C – 80°C       | Red   |
+
+---
+
+# UART Commands
+
+The system supports dynamic runtime configuration through UART.
+
+## Example Commands
+
+```text
+ROJO_MIN_18
+ROJO_MAX_30
+VERDE_MIN_20
+VERDE_MAX_35
+AZUL_MIN_5
+AZUL_MAX_15
+PWM_50
 ```
-idf.py -p PORT flash monitor
+
+## Description
+
+| Command       | Function                      |
+| ------------- | ----------------------------- |
+| `ROJO_MIN_X`  | Sets minimum red threshold    |
+| `ROJO_MAX_X`  | Sets maximum red threshold    |
+| `VERDE_MIN_X` | Sets minimum green threshold  |
+| `VERDE_MAX_X` | Sets maximum green threshold  |
+| `AZUL_MIN_X`  | Sets minimum blue threshold   |
+| `AZUL_MAX_X`  | Sets maximum blue threshold   |
+| `PWM_X`       | Sets RGB intensity percentage |
+
+---
+
+# Manual RGB Control
+
+The manual subsystem uses:
+
+* One potentiometer
+* Four buttons
+
+## Buttons
+
+| Button   | Function             |
+| -------- | -------------------- |
+| `BTN_R`  | Select red channel   |
+| `BTN_G`  | Select green channel |
+| `BTN_B`  | Select blue channel  |
+| `BTN_OK` | Show final RGB mix   |
+
+## Operation
+
+1. Select a color channel.
+2. Rotate the potentiometer.
+3. PWM intensity is stored for the selected channel.
+4. Press `BTN_OK` to display the final RGB mixture.
+
+---
+
+# Project Structure
+
+```text
+project/
+│
+├── main/
+│   ├── main.c
+│   ├── libraries.c
+│   └── libraries.h
+│
+├── CMakeLists.txt
+├── sdkconfig
+└── README.md
 ```
 
-(To exit the serial monitor, type ``Ctrl-]``.)
+---
 
-See the Getting Started Guide for full steps to configure and use ESP-IDF to build projects.
+# File Description
 
-## Example Output
+## `main.c`
 
-Running this example, you will see the following log output on the serial monitor:
+Responsible for:
 
-```
-I (304) ADC_ONESHOT: calibration scheme version is Curve Fitting
-I (304) ADC_ONESHOT: calibration scheme version is Curve Fitting
-I (314) ADC_ONESHOT: ADC1 Channel[2] Raw Data: 0
-I (314) ADC_ONESHOT: ADC1 Channel[2] Cali Voltage: 0 mV
-I (1324) ADC_ONESHOT: ADC1 Channel[3] Raw Data: 664
-I (1324) ADC_ONESHOT: ADC1 Channel[3] Cali Voltage: 559 mV
-I (2324) ADC_ONESHOT: ADC2 Channel[0] Raw Data: 580
-I (2324) ADC_ONESHOT: ADC2 Channel[0] Cali Voltage: 498 mV
-I (3324) ADC_ONESHOT: ADC1 Channel[2] Raw Data: 0
-I (3324) ADC_ONESHOT: ADC1 Channel[2] Cali Voltage: 0 mV
-I (4324) ADC_ONESHOT: ADC1 Channel[3] Raw Data: 666
-I (4324) ADC_ONESHOT: ADC1 Channel[3] Cali Voltage: 561 mV
-I (5324) ADC_ONESHOT: ADC2 Channel[0] Raw Data: 575
-I (5324) ADC_ONESHOT: ADC2 Channel[0] Cali Voltage: 495 mV
-...
-```
+* system startup
+* task creation
+* global configuration
 
-## Troubleshooting
+## `libraries.c`
 
-If following warning is printed out, it means the calibration required eFuse bits are not burnt correctly on your board. The calibration will be skipped. Only raw data will be printed out.
-```
-W (300) ADC_ONESHOT: eFuse not burnt, skip calibration
-I (1310) ADC_ONESHOT: ADC1 Channel[2] Raw Data: 0
-```
+Contains:
+
+* ADC drivers
+* PWM configuration
+* UART communication
+* RGB control logic
+* FreeRTOS tasks
+* helper functions
+
+## `libraries.h`
+
+Contains:
+
+* macros
+* structs
+* enums
+* function prototypes
+
+---
+
+# ADC Configuration
+
+The project uses:
+
+* ADC OneShot driver
+* ADC calibration (curve fitting)
+
+The ADC is shared between:
+
+* NTC sensor
+* potentiometer
+
+using different ADC channels.
+
+---
+
+# PWM Configuration
+
+PWM is generated using:
+
+* LEDC peripheral
+* Low Speed Mode
+* 5 kHz frequency
+
+---
+
+# Software Architecture
+
+The firmware follows a modular RTOS-based architecture:
+
+* Hardware abstraction
+* Decoupled communication
+* Queue-based synchronization
+* Concurrent execution
+
+This improves:
+
+* scalability
+* maintainability
+* debugging
+* modularity
+
+
