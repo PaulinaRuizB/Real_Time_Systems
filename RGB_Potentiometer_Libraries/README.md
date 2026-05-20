@@ -1,4 +1,4 @@
-# NTC RGB Controller with ESP-IDF and FreeRTOS
+# NTC RGB Controller with ESP-IDF
 
 ## Overview
 
@@ -229,22 +229,5 @@ PWM is generated using:
 * Low Speed Mode
 * 5 kHz frequency
 
----
-
-# Software Architecture
-
-The firmware follows a modular RTOS-based architecture:
-
-* Hardware abstraction
-* Decoupled communication
-* Queue-based synchronization
-* Concurrent execution
-
-This improves:
-
-* scalability
-* maintainability
-* debugging
-* modularity
 
 
