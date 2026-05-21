@@ -47,24 +47,28 @@
 #define LED_B 6
 
 
-void app_main(void) { 
-    
-    system_init(); 
-    
-    static rgb_config_t rgb_config = { 
-        
-        .rojo_min = 35.0, 
-        .rojo_max = 80.0, 
-        .verde_min = 25.0, 
-        .verde_max = 35.0, 
-        .azul_min = 10.0, 
-        .azul_max = 25.0, 
-        .pwm_intensity = PWM_MAX }; 
-        
-        xTaskCreate(sensor_task, "sensor_task", 4096, NULL, 5, NULL); 
-        xTaskCreate(rgb_task, "rgb_task", 4096, &rgb_config, 5, NULL); 
-        xTaskCreate(uart_task, "uart_task", 4096, NULL, 5, NULL); 
-        xTaskCreate(command_task, "command_task", 4096, &rgb_config, 5, NULL);
-        xTaskCreate( potentiometer_task, "potentiometer_task", 4096, NULL, 5, NULL);
+void app_main(void) {
+
+    static system_config_t config = {
+        .rojo_min = 35.0,
+        .rojo_max = 80.0,
+        .verde_min = 25.0,
+        .verde_max = 35.0,
+        .azul_min = 10.0,
+        .azul_max = 25.0,
+        .pwm_intensity = PWM_MAX,
+        .temp_period_ms = 2000,
+        .temp_unit = TEMP_CELSIUS,
+        .pot_threshold = 128
+    };
+
+    system_init();
+    xQueueOverwrite(config_queue, &config);
+
+    xTaskCreate(sensor_task, "sensor_task", 4096, NULL, 5, NULL);
+    xTaskCreate(rgb_task, "rgb_task", 4096, &config, 5, NULL);
+    xTaskCreate(uart_task, "uart_task", 4096, NULL, 5, NULL);
+    xTaskCreate(command_task, "command_task", 4096, &config, 5, NULL);
+    xTaskCreate(potentiometer_task, "potentiometer_task", 4096, NULL, 5, NULL);
 
 }

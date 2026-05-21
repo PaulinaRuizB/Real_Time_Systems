@@ -27,17 +27,48 @@
 #define BUF_SIZE (1024)
 #define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
 
+// ================================
+// UNIDADES DE TEMPERATURA
+// ================================
+typedef enum {
+    TEMP_CELSIUS = 0,
+    TEMP_FAHRENHEIT,
+    TEMP_KELVIN
+} temp_unit_t;
 
-// Estructura para configurar los limites de cada color 
-typedef struct { 
-    float rojo_min; 
-    float rojo_max; 
-    float verde_min; 
-    float verde_max; 
-    float azul_min; 
-    float azul_max; 
-    uint16_t pwm_intensity; 
-} rgb_config_t;
+
+// ================================
+// CONFIGURACIÓN GLOBAL DEL SISTEMA
+// ================================
+typedef struct {
+
+    // Rangos RGB
+    float rojo_min;
+    float rojo_max;
+
+    float verde_min;
+    float verde_max;
+
+    float azul_min;
+    float azul_max;
+
+    // Intensidad PWM
+    uint16_t pwm_intensity;
+
+    // Tiempo de muestreo temperatura
+    uint32_t temp_period_ms;
+
+    // Unidad de temperatura
+    temp_unit_t temp_unit;
+
+    // Umbral del potenciómetro
+    uint8_t pot_threshold;
+
+} system_config_t;
+
+extern QueueHandle_t temp_queue;
+extern QueueHandle_t cmd_queue;
+extern QueueHandle_t config_queue;
 
 // Funciones 
 void system_init(void); 
@@ -52,11 +83,10 @@ void set_color(uint16_t r, uint16_t g, uint16_t b);
 
 float ntc_calculate_temperature(void); 
 
-void process_uart_command(char *cmd, rgb_config_t *config);
+uint8_t map_adc_to_pwm(int adc_value);
 
-void update_pwm_preview();
-void update_pwm();
-uint8_t map_adc_to_pwm(int adc_raw);
+void process_uart_command(char *cmd, system_config_t *config);
+
 void gpio_init_buttons();
 
 // Tareas 

@@ -31,6 +31,7 @@
 #define T0          298.15
 #define BETA        3470.0
 
+
 //PWM CONFIG
 #define LEDC_TIMER      LEDC_TIMER_0
 #define LEDC_MODE       LEDC_LOW_SPEED_MODE
@@ -43,10 +44,8 @@
 #define LEDC_CHANNEL_B  LEDC_CHANNEL_2
 
 //canales para LED 2 potenciometro 
-#define LEDC_CHANNEL_R1  LEDC_CHANNEL_3
-#define LEDC_CHANNEL_G2  LEDC_CHANNEL_4
-#define LEDC_CHANNEL_B3  LEDC_CHANNEL_5
-
+#define LED_THRESHOLD 7 
+#define LEDC_CHANNEL_THRESHOLD LEDC_CHANNEL_3
 #define PWM_MAX ((1 << 10) - 1)
 
 //PINS LED RGB
@@ -55,16 +54,9 @@
 #define LED_G 5
 #define LED_B 6
 
-#define LED_R1 7
-#define LED_G2 9
-#define LED_B3 8
-
 // Botones de control 
 
-#define BTN_R   GPIO_NUM_10
-#define BTN_G   GPIO_NUM_11
-#define BTN_B   GPIO_NUM_12
-#define BTN_OK  GPIO_NUM_13
+#define BTN   GPIO_NUM_10
 
 
 static const char *TAG = "NTC_SYSTEM"; 
@@ -80,6 +72,7 @@ static bool do_calibration = false;
 
 QueueHandle_t temp_queue; 
 QueueHandle_t cmd_queue;
+QueueHandle_t config_queue;
 
 // Calibración ADC 
 static bool example_adc_calibration_init( adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle) { 
@@ -119,7 +112,6 @@ void adc_init()
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
-    // Configure NTC and potentiometer channels on the same ADC unit
     adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_NTC, &config);
     adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_POT, &config);
 
@@ -128,12 +120,6 @@ void adc_init()
         ADC_CHANNEL_NTC,
         ADC_ATTEN,
         &adc_cali_handle);
-
-    if (do_calibration) {
-        ESP_LOGI(TAG, "ADC calibration enabled for NTC channel");
-    } else {
-        ESP_LOGW(TAG, "ADC calibration unavailable; using raw conversion for NTC");
-    }
 }
 
 // FUNCIÓN CONFIG PWM ambos funcionamientos de LEDS
@@ -167,16 +153,8 @@ void pwm_init()
     ch.gpio_num = LED_B;
     ledc_channel_config(&ch);
 
-    ch.channel = LEDC_CHANNEL_R1;
-    ch.gpio_num = LED_R1;
-    ledc_channel_config(&ch);
-
-    ch.channel = LEDC_CHANNEL_G2;
-    ch.gpio_num = LED_G2;
-    ledc_channel_config(&ch);
-
-    ch.channel = LEDC_CHANNEL_B3;
-    ch.gpio_num = LED_B3;
+    ch.channel = LEDC_CHANNEL_THRESHOLD;
+    ch.gpio_num = LED_THRESHOLD;
     ledc_channel_config(&ch);
 }
 
@@ -194,8 +172,8 @@ void uart_init()
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-     uart_driver_install(ECHO_UART_PORT_NUM , BUF_SIZE * 2, 0, 0, NULL, 0);
-     uart_param_config(ECHO_UART_PORT_NUM , &uart_config);
+    uart_param_config(ECHO_UART_PORT_NUM, &uart_config);
+    uart_driver_install(ECHO_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, 0);
 
     // Mensaje de bienvenida
     uart_write_bytes(ECHO_UART_PORT_NUM, "Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n", strlen("Sistema NTC UART listo. Envia comandos como ROJO_MIN_35 o PWM_50\n"));
@@ -203,12 +181,13 @@ void uart_init()
 
 // INIT Sistema (pwm, uart, adc)
 
-void system_init() { 
-    pwm_init(); 
-    uart_init(); 
-    adc_init(); 
-    temp_queue = xQueueCreate( 5, sizeof(float)); 
-    cmd_queue = xQueueCreate( 5, BUF_SIZE); 
+void system_init() {
+    pwm_init();
+    uart_init();
+    adc_init();
+    temp_queue = xQueueCreate(5, sizeof(float));
+    cmd_queue = xQueueCreate(5, BUF_SIZE);
+    config_queue = xQueueCreate(1, sizeof(system_config_t));
 }
 
 //Control RGB
@@ -233,20 +212,17 @@ float ntc_calculate_temperature(){
         adc_oneshot_read(adc_handle, ADC_CHANNEL_NTC, &raw);
 
         if (do_calibration) {
-            if (adc_cali_raw_to_voltage(adc_cali_handle, raw, &voltage_mv) != ESP_OK) {
-                ESP_LOGW(TAG, "ADC calibration read failed, using raw conversion");
-                voltage_mv = (raw * 3300) / 4095;
-            }
-        } else {
+
+            adc_cali_raw_to_voltage(adc_cali_handle,
+                raw,
+                &voltage_mv);
+        }
+        else {
+
             voltage_mv = (raw * 3300) / 4095;
         }
 
-        ESP_LOGI(TAG, "ADC raw=%d mV=%d", raw, voltage_mv);
         float Vout = voltage_mv / 1000.0;
-
-        char voltage_msg[50];
-        sprintf(voltage_msg, "Voltaje: %.2f V\n", Vout);
-        uart_write_bytes(ECHO_UART_PORT_NUM, voltage_msg, strlen(voltage_msg));
 
         if (Vout <= 0.01 || Vout >= VCC - 0.01) {
 
@@ -277,7 +253,7 @@ float ntc_calculate_temperature(){
 
 // Procesar comandos de UART
 
-void process_uart_command(char *cmd, rgb_config_t *config)
+void process_uart_command(char *cmd, system_config_t *config)
 {
     
     cmd[strcspn(cmd, "\r\n")] = 0;
@@ -321,7 +297,27 @@ void process_uart_command(char *cmd, rgb_config_t *config)
         } else {
             uart_write_bytes(ECHO_UART_PORT_NUM , "ERROR: PWM debe estar entre 0 y 100\n", strlen("ERROR: PWM debe estar entre 0 y 100\n"));
         }
-    } 
+    } //tiempo de impresión
+    else if (sscanf(cmd, "TIEMPO_%d", &value) == 1) {
+        if (value > 0) {
+            config->temp_period_ms = value * 1000;
+            char msg[64]; sprintf(msg, "OK: Tiempo %d s\n", value);
+            uart_write_bytes(ECHO_UART_PORT_NUM, msg, strlen(msg));
+        } else {
+            uart_write_bytes(ECHO_UART_PORT_NUM, "ERROR: TIEMPO debe ser mayor que 0\n", strlen("ERROR: TIEMPO debe ser mayor que 0\n"));
+        }
+    }
+    //Umbral para que se encienda el led con el potenciometro
+    else if (sscanf(cmd, "UMBRAL_%d", &value) == 1) {
+        if (value >= 0 && value <= 255) {
+            config->pot_threshold = value;
+            char msg[64];
+            sprintf(msg, "OK: Umbral %d\n", value);
+            uart_write_bytes(ECHO_UART_PORT_NUM, msg, strlen(msg));
+        } else {
+            uart_write_bytes(ECHO_UART_PORT_NUM, "ERROR: UMBRAL debe estar entre 0 y 255\n", strlen("ERROR: UMBRAL debe estar entre 0 y 255\n"));
+        }
+    }
     else {
         
         uart_write_bytes(ECHO_UART_PORT_NUM , "No reconozco el comando\n", strlen("No reconozco el comando\n"));
@@ -331,12 +327,46 @@ void process_uart_command(char *cmd, rgb_config_t *config)
 // Tareas 
 
 // Tarea para leer el sensor y enviar la temperatura a la cola
-void sensor_task(void *arg) { 
-    float temperature; 
-    while (1) { 
-        temperature = ntc_calculate_temperature(); 
+void sensor_task(void *arg) {
+    float temperature;
+    system_config_t config;
+
+    while (1) {
+        xQueuePeek(config_queue, &config, portMAX_DELAY);
+        temperature = ntc_calculate_temperature();
+
+        // para mostrar la temperatura según unidad por cada pulsación del botón
+        float temp_show;
+        char unit[5];
+
+        switch (config.temp_unit)
+        {
+            case TEMP_CELSIUS:
+                temp_show = temperature;
+                strcpy(unit, "C");
+                break;
+
+            case TEMP_KELVIN:
+                temp_show = temperature + 273.15;
+                strcpy(unit, "K");
+                break;
+
+            case TEMP_FAHRENHEIT:
+                temp_show = (temperature * 9.0 / 5.0) + 32.0;
+                strcpy(unit, "F");
+                break;
+
+            default:
+                temp_show = temperature;
+                strcpy(unit, "C");
+                break;
+        }
+
+        char msg[64]; 
+        sprintf(msg, "Temperatura: %.2f %s\n", temp_show, unit);
+        uart_write_bytes (ECHO_UART_PORT_NUM, msg, strlen(msg));
         xQueueSend(temp_queue, &temperature, portMAX_DELAY); 
-        vTaskDelay(pdMS_TO_TICKS(2000)); 
+        vTaskDelay(pdMS_TO_TICKS(config.temp_period_ms)); 
     } 
 }
 
@@ -355,215 +385,233 @@ void uart_task(void *arg)
             // Hacemos un "ECHO": devolvemos el texto a YAT para confirmar recepción
             uart_write_bytes(ECHO_UART_PORT_NUM, (const char *) data, len);
             
-            xQueueSend(cmd_queue, data, portMAX_DELAY);
+            xQueueSend(cmd_queue, (void *)data, portMAX_DELAY);
         }
     }
 }
 
-void command_task(void *arg) { 
-    
-    char cmd[BUF_SIZE]; 
-    rgb_config_t *config = (rgb_config_t *) arg; 
-    
-    while (1) { 
-        
-        if (xQueueReceive(cmd_queue, cmd, portMAX_DELAY)) { 
-            process_uart_command(cmd, config); 
-        } 
-    } 
-} 
+void command_task(void *arg) {
 
-void rgb_task(void *arg) { 
-    
-    float temp; rgb_config_t *config = (rgb_config_t *) arg; 
-    
-    while (1) { 
-        
+    char cmd[BUF_SIZE];
+    system_config_t config;
+
+    while (1) {
+
+        if (xQueueReceive(cmd_queue, cmd, portMAX_DELAY)) {
+
+            xQueuePeek(config_queue, &config, portMAX_DELAY);
+            process_uart_command(cmd, &config);
+            xQueueOverwrite(config_queue, &config);
+        }
+    }
+}
+
+void rgb_task(void *arg) {
+
+    float temp;
+    system_config_t current_config;
+
+    while (1) {
+
         if (xQueueReceive(temp_queue, &temp, portMAX_DELAY)) {
-             
-            uint16_t r = 0; 
-            uint16_t g = 0; 
-            uint16_t b = 0; 
 
-            if (temp >= config->azul_min && temp <= config->azul_max) { 
-                
-                b = config->pwm_intensity; 
-            } 
-                
-            if (temp >= config->verde_min && temp <= config->verde_max) { 
-                g = config->pwm_intensity; 
-            } 
-            
-            if (temp >= config->rojo_min && temp <= config->rojo_max) { 
-                
-                r = config->pwm_intensity; 
-            } 
-                
-                set_color(r, g, b); 
+            xQueuePeek(config_queue, &current_config, portMAX_DELAY);
+
+            uint16_t r = 0;
+            uint16_t g = 0;
+            uint16_t b = 0;
+
+            if (temp >= current_config.azul_min && temp <= current_config.azul_max) {
+                b = current_config.pwm_intensity;
+            }
+
+            if (temp >= current_config.verde_min && temp <= current_config.verde_max) {
+                g = current_config.pwm_intensity;
+            }
+
+            if (temp >= current_config.rojo_min && temp <= current_config.rojo_max) {
+                r = current_config.pwm_intensity;
+            }
+
+            set_color(r, g, b);
         } 
     } 
 }
 
-//configuración LED potenciometro 
+// configuración LED potenciometro
 
-// variables de inicialización 
-uint8_t duty_r = 0;
-uint8_t duty_g = 0;
-uint8_t duty_b = 0;
+// ======================================================
+// CONFIGURACION BOTON UNIDAD
+// ======================================================
 
-// Estructuras para estados de color y control
-typedef enum {
-    SELECT_NONE,
-    SELECT_R,
-    SELECT_G,
-    SELECT_B
-} color_select_t;
-
-static color_select_t current_color = SELECT_NONE; // Variable para almacenar el color seleccionado
-
-//Modo de operación del sistema 
-typedef enum {
-    MODE_CONFIG,
-    MODE_SHOW
-} system_mode_t;
-
-static system_mode_t mode = MODE_CONFIG;
-
-//Función para configurar los botones de control
 void gpio_init_buttons()
 {
     gpio_config_t io = {
         .mode = GPIO_MODE_INPUT,
-        .pull_up_en = 1,
-        .pin_bit_mask = (1ULL<<BTN_R) | (1ULL<<BTN_G) | (1ULL<<BTN_B) | (1ULL<<BTN_OK)
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pin_bit_mask = (1ULL << BTN)
     };
+
     gpio_config(&io);
 }
 
-//Función para escalar los datos tomados del ADC a PWM para el control del RGB
+
+// ======================================================
+// MAP ADC -> 8 BITS
+// ======================================================
+
 uint8_t map_adc_to_pwm(int adc_raw)
 {
-    return (adc_raw * 255) / 4095; // 12-bit ADC → 8-bit PWM
+    return (adc_raw * 255) / 4095;
 }
 
-// Función para actualizar el PWM según selección 
-void update_pwm_preview()
-{
-    uint8_t r = 0, g = 0, b = 0;
 
-    if (current_color == SELECT_R) r = duty_r;
-    if (current_color == SELECT_G) g = duty_g;
-    if (current_color == SELECT_B) b = duty_b;
-    // Scale 8-bit preview values (0-255) to LEDC resolution (0-PWM_MAX)
-    uint32_t duty_r_scaled = (r * PWM_MAX) / 255;
-    uint32_t duty_g_scaled = (g * PWM_MAX) / 255;
-    uint32_t duty_b_scaled = (b * PWM_MAX) / 255;
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R1, duty_r_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R1);
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G2, duty_g_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G2);
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B3, duty_b_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B3);
-}
-
-// Update full RGB mix for LED2 (potentiometer) using stored duty_* values
-void update_pwm()
-{
-    uint32_t duty_r_scaled = (duty_r * PWM_MAX) / 255;
-    uint32_t duty_g_scaled = (duty_g * PWM_MAX) / 255;
-    uint32_t duty_b_scaled = (duty_b * PWM_MAX) / 255;
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_R1, duty_r_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_R1);
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_G2, duty_g_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_G2);
-
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL_B3, duty_b_scaled);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL_B3);
-}
+// ======================================================
+// POTENTIOMETER TASK
+// ======================================================
 
 void potentiometer_task(void *arg)
 {
-    pwm_init();
     gpio_init_buttons();
-    
+
     int adc_raw;
-    //Variables de control para que los logs se actualicen solo cuando hay cambios 
-static int last_color = -1;
-static int last_pwm = -1;
-static int last_mode = -1; 
 
-    while (1) {
+    int last_pot = -1;
 
-        // 1. Leer valor del potenciómetro en ADC_CHANNEL_POT
-        ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, ADC_CHANNEL_POT, &adc_raw));
-        uint8_t pwm_val = map_adc_to_pwm(adc_raw);
+    system_config_t config;
 
-    // ===== 2. Lectura de botones (edge-like con delay simple) =====
-    if (!gpio_get_level(BTN_R)) {
-        current_color = SELECT_R;
-        mode = MODE_CONFIG;
-        vTaskDelay(pdMS_TO_TICKS(200)); // debounce básico
-    }
+    while (1)
+    {
+        // ==========================================
+        // OBTENER CONFIGURACION ACTUAL
+        // ==========================================
 
-    if (!gpio_get_level(BTN_G)) {
-        current_color = SELECT_G;
-        mode = MODE_CONFIG;
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+        xQueuePeek(
+            config_queue,
+            &config,
+            portMAX_DELAY);
 
-    if (!gpio_get_level(BTN_B)) {
-        current_color = SELECT_B;
-        mode = MODE_CONFIG;
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+        // ==========================================
+        // CAMBIO UNIDAD TEMPERATURA
+        // ==========================================
 
-    if (!gpio_get_level(BTN_OK)) {
-        mode = MODE_SHOW;
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+        if (!gpio_get_level(BTN))
+        {
+            // Cambiar unidad
 
-    // ===== 3. Guardar valores (modo configuración) =====
-    if (mode == MODE_CONFIG) {
-        if (current_color == SELECT_R) duty_r = pwm_val;
-        if (current_color == SELECT_G) duty_g = pwm_val;
-        if (current_color == SELECT_B) duty_b = pwm_val;
+            config.temp_unit++;
 
-        update_pwm_preview();  //canal activo
-    }
+            if(config.temp_unit > TEMP_KELVIN)
+            {
+                config.temp_unit =
+                    TEMP_CELSIUS;
+            }
 
-    // ===== 4. Mostrar mezcla =====
-    if (mode == MODE_SHOW) {
-        update_pwm();  // mezcla RGB completa
-    }
+            // Guardar configuracion
 
-    // Cambio de color
-    if (current_color != last_color) {
-        ESP_LOGI(TAG, "Color actual: %d", current_color);
-        last_color = current_color;
-    }
+            xQueueOverwrite(
+                config_queue,
+                &config);
 
-    // Cambio de modo
-    if (mode != last_mode) {
-        if (mode == MODE_CONFIG)
-            ESP_LOGI(TAG, "Modo: CONFIG");
+            // Mensaje UART
+
+            switch(config.temp_unit)
+            {
+                case TEMP_CELSIUS:
+
+                    uart_write_bytes(
+                    ECHO_UART_PORT_NUM,
+                    "Unidad: Celsius\n",
+                    strlen("Unidad: Celsius\n"));
+
+                break;
+
+                case TEMP_FAHRENHEIT:
+
+                    uart_write_bytes(
+                    ECHO_UART_PORT_NUM,
+                    "Unidad: Fahrenheit\n",
+                    strlen("Unidad: Fahrenheit\n"));
+
+                break;
+
+                case TEMP_KELVIN:
+
+                    uart_write_bytes(
+                    ECHO_UART_PORT_NUM,
+                    "Unidad: Kelvin\n",
+                    strlen("Unidad: Kelvin\n"));
+
+                    break;
+            }
+
+            // debounce
+
+            vTaskDelay(pdMS_TO_TICKS(250));
+        }
+
+        // ==========================================
+        // LEER POTENCIOMETRO
+        // ==========================================
+
+        ESP_ERROR_CHECK(
+            adc_oneshot_read(
+                adc_handle,
+                ADC_CHANNEL_POT,
+                &adc_raw));
+
+        // convertir a 0-255
+
+        uint8_t pot_value =
+            map_adc_to_pwm(adc_raw);
+
+        // ==========================================
+        // CONTROL LED UMBRAL
+        // ==========================================
+
+        if(pot_value >= config.pot_threshold)
+        {
+            ledc_set_duty(
+                LEDC_MODE,
+                LEDC_CHANNEL_THRESHOLD,
+                PWM_MAX);
+
+            ledc_update_duty(
+                LEDC_MODE,
+                LEDC_CHANNEL_THRESHOLD);
+        }
         else
-            ESP_LOGI(TAG, "Modo: SHOW");
+        {
+            ledc_set_duty(
+                LEDC_MODE,
+                LEDC_CHANNEL_THRESHOLD,
+                0);
 
-        last_mode = mode;
-    }
+            ledc_update_duty(
+                LEDC_MODE,
+                LEDC_CHANNEL_THRESHOLD);
+        }
 
-    // Cambio de PWM (con filtro anti-ruido)
-    if (abs(pwm_val - last_pwm) > 2) {
-        ESP_LOGI(TAG, "PWM: %d", pwm_val);
-        last_pwm = pwm_val;
-    }
+        // ==========================================
+        // LOG SOLO SI CAMBIA
+        // ==========================================
 
-    // ===== 6. Delay del sistema =====
-    vTaskDelay(pdMS_TO_TICKS(50));
+        if(abs(pot_value - last_pot) > 3)
+        {
+            ESP_LOGI(
+                TAG,
+                "Potenciometro: %d | Umbral: %d",
+                pot_value,
+                config.pot_threshold);
+
+            last_pot = pot_value;
+        }
+
+        // ==========================================
+        // DELAY
+        // ==========================================
+
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
+
