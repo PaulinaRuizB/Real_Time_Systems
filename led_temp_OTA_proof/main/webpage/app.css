@@ -1,0 +1,910 @@
+
+/*
+  ╔══════════════════════════════════════════════════════════════╗
+  ║   Panel de Control ESP32 — Sistemas en Tiempo Real          ║
+  ║   Archivo: styles.css                                        ║
+  ║   Descripción: Todos los estilos visuales de la página.      ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+  ORDEN DEL ARCHIVO:
+  ──────────────────
+   1. Variables CSS (paleta de colores, fuentes, sombras)
+   2. Reset y estilos base del documento
+   3. Fondo decorativo (orbs / esferas de luz)
+   4. Contenedor principal (wrapper)
+   5. Encabezado (header)
+   6. Grid de tarjetas
+   7. Estilos comunes de tarjeta (card)
+   8. Encabezado de tarjeta (card-header)
+   9. Formularios, etiquetas, inputs
+  10. Sliders RGB
+  11. Botón principal (btn)
+  12. Tarjeta de temperatura
+  13. Pie de página (footer)
+  14. Animaciones (@keyframes)
+  15. Responsive / Media queries
+*/
+
+
+/* ═══════════════════════════════════════════════════════════════
+   1. VARIABLES CSS — La "paleta" de todo el diseño
+   ═══════════════════════════════════════════════════════════════
+   Las variables CSS (también llamadas "custom properties") se
+   definen con dos guiones: --nombre-variable: valor;
+   Se aplican con: color: var(--nombre-variable);
+
+   Ventaja: si queremos cambiar un color, solo lo cambiamos aquí
+   y se actualiza en toda la página automáticamente.
+
+   :root es el selector del elemento raíz (<html>), por eso las
+   variables definidas aquí son accesibles en todo el documento.
+*/
+:root {
+
+  /* ── Paleta de colores principal (familia morado/violeta/lila) ── */
+
+  /* Color más oscuro, casi negro con tinte morado.
+     Se usa como fondo general de la página. */
+  --color-bg-deep:     #0d0818;
+
+  /* Morado profundo. Fondo de las tarjetas (cards). */
+  --color-bg-card:     #170d2e;
+
+  /* Morado medio. Para bordes y divisores de sección. */
+  --color-border:      #3b1f6b;
+
+  /* Morado principal. Color dominante de los elementos interactivos. */
+  --color-primary:     #7c3aed;
+
+  /* Violeta más claro. Para hover y acentos. */
+  --color-primary-lt:  #9d5cf7;
+
+  /* Lila vibrante. Para brillos, glows y botones. */
+  --color-accent:      #a855f7;
+
+  /* Lila muy claro. Para el texto de ayuda y subtítulos. */
+  --color-accent-lt:   #d8b4fe;
+
+  /* Lila pálido. Para el texto del placeholder. */
+  --color-accent-pale: #ede9fe;
+
+  /* Blanco con tinte lila. Texto principal y títulos. */
+  --color-text:        #f5f0ff;
+
+  /* Lila medio-claro. Texto secundario y notas. */
+  --color-text-muted:  #c4b5fd;
+
+  /* ── Colores de los sliders RGB ── */
+  --color-r:   #f87171;   /* Rojo claro pastel */
+  --color-g:   #4ade80;   /* Verde claro pastel */
+  --color-b:   #818cf8;   /* Azul-índigo claro */
+
+  /* ── Sombras ──
+     Las sombras se expresan en rgba() para poder controlar
+     la opacidad (el último número). */
+
+  /* Sombra suave para las tarjetas (elevación leve) */
+  --shadow-card:    0 8px 32px rgba(80, 0, 150, 0.35);
+
+  /* Resplandor morado para elementos activos/hover */
+  --shadow-glow:    0 0 30px rgba(168, 85, 247, 0.4);
+
+  /* Resplandor más intenso para botones al hacer hover */
+  --shadow-btn:     0 4px 20px rgba(124, 58, 237, 0.6);
+
+  /* ── Tipografía ── */
+  --font-display: 'Cinzel', Georgia, serif;       /* Para el título principal */
+  --font-body:    'Raleway', 'Trebuchet MS', sans-serif; /* Para todo lo demás */
+
+  /* ── Bordes redondeados ── */
+  --radius-card:  1.25rem;   /* 20px — bordes suaves para las tarjetas */
+  --radius-input: 0.625rem;  /* 10px — bordes para inputs */
+  --radius-btn:   2rem;      /* 32px — botón muy redondeado (tipo "pill") */
+
+  /* ── Transición estándar ──
+     Se aplica a casi todos los elementos interactivos.
+     0.25s = un cuarto de segundo (ni muy rápido ni lento). */
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   2. RESET Y ESTILOS BASE
+   ═══════════════════════════════════════════════════════════════
+   Los navegadores tienen estilos propios por defecto (márgenes,
+   tamaños de fuente, etc.). El "reset" los neutraliza para que
+   nuestro diseño sea coherente en Chrome, Firefox, Safari, etc.
+*/
+
+/* box-sizing: border-box; — Hace que el padding y el border
+   NO aumenten el tamaño total del elemento.
+   Por ejemplo: un div de 200px sigue siendo 200px aunque
+   tenga padding: 20px.
+   El selector * aplica esto a TODOS los elementos.
+   ::before y ::after son pseudo-elementos (decoraciones extra). */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin:     0;    /* Elimina márgenes por defecto */
+  padding:    0;    /* Elimina relleno por defecto */
+}
+
+/* Estilos base del documento (equivalente al <body>) */
+body {
+  /* Fuente principal para todo el cuerpo */
+  font-family:      var(--font-body);
+  /* Color de texto por defecto */
+  color:            var(--color-text);
+  /* Fondo oscuro base (los orbs se ven encima de este) */
+  background-color: var(--color-bg-deep);
+  /* Mejora la calidad de renderizado de fuentes en pantallas HiDPI */
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Permite que la página haga scroll si el contenido es muy alto */
+  overflow-x: hidden;
+  min-height:  100vh; /* Ocupa al menos toda la altura de la ventana */
+}
+
+/* Los <h1>…<h6> heredan la fuente del body por defecto.
+   Aquí los reseteamos para que no sean tan pesados. */
+h1, h2, h3 {
+  font-weight: normal; /* Quitamos el negrita automático */
+  line-height: 1.2;    /* Interlineado más ajustado para títulos */
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   3. FONDO DECORATIVO — Esferas de luz (orbs)
+   ═══════════════════════════════════════════════════════════════
+   Técnica de "glassmorphism": círculos borrosos de colores
+   colocados en el fondo para crear profundidad y atmósfera.
+*/
+
+/* Contenedor de los orbs.
+   position: fixed → se queda fijo aunque se haga scroll.
+   inset: 0 → equivale a top:0; right:0; bottom:0; left:0;
+   (ocupa toda la pantalla).
+   pointer-events: none → el usuario puede hacer clic "a través"
+   de este elemento (no bloquea la interacción con la página).
+   z-index: 0 → está debajo de todo el contenido. */
+.bg-orbs {
+  position:       fixed;
+  inset:          0;
+  overflow:       hidden;
+  pointer-events: none;
+  z-index:        0;
+}
+
+/* Estilo base de cada orb.
+   Todos son círculos (border-radius: 50%) de posición absoluta
+   con un desenfoque de fondo muy pronunciado (blur). */
+.orb {
+  position:      absolute;
+  border-radius: 50%;     /* Lo hace perfectamente redondo */
+  /* filter: blur() borra los bordes del círculo gradualmente,
+     creando el efecto de neblina o resplandor difuso. */
+  filter:        blur(80px);
+  opacity:       0.55;
+  /* La animación "drift" hace que el orb se mueva lentamente */
+  animation:     drift 18s ease-in-out infinite alternate;
+}
+
+/* Orb 1 — grande, morado intenso, esquina superior izquierda */
+.orb-1 {
+  width:            600px;
+  height:           600px;
+  background:       radial-gradient(circle, #5b21b6, #7c3aed);
+  top:             -150px;
+  left:            -150px;
+  animation-delay: 0s; /* Empieza sin retraso */
+}
+
+/* Orb 2 — mediano, violeta, esquina inferior derecha */
+.orb-2 {
+  width:            450px;
+  height:           450px;
+  background:       radial-gradient(circle, #a855f7, #4c1d95);
+  bottom:          -100px;
+  right:           -100px;
+  animation-delay: -6s; /* Empieza "ya avanzada" la animación
+                           para que no se mueva igual que el orb-1 */
+  animation-duration: 22s;
+}
+
+/* Orb 3 — pequeño, lila, centro de la pantalla */
+.orb-3 {
+  width:            300px;
+  height:           300px;
+  background:       radial-gradient(circle, #c084fc, #7c3aed);
+  top:              40%;
+  left:             55%;
+  animation-delay:  -12s;
+  animation-duration: 26s;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   4. CONTENEDOR PRINCIPAL (wrapper)
+   ═══════════════════════════════════════════════════════════════
+   Centra horizontalmente todo el contenido y le da un ancho máximo.
+*/
+.wrapper {
+  position:  relative; /* Para que sea z-index > que los orbs */
+  z-index:   1;         /* Encima del fondo decorativo */
+  max-width:  1100px;   /* En pantallas anchas, no se estira demasiado */
+  margin:     0 auto;   /* Centra el wrapper horizontalmente */
+  padding:    2rem 1.5rem; /* Espacio interno: arriba/abajo 2rem, lados 1.5rem */
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   5. ENCABEZADO (site-header)
+   ═══════════════════════════════════════════════════════════════
+*/
+.site-header {
+  display:         flex;        /* Pone el ícono y el texto en fila */
+  align-items:     center;      /* Los alinea verticalmente al centro */
+  gap:             1.25rem;     /* Espacio entre el ícono y el texto */
+  margin-bottom:   2.5rem;      /* Espacio debajo del header */
+  padding:         1.5rem 2rem; /* Relleno interno */
+  /* Fondo semi-transparente con efecto "vidrio esmerilado" */
+  background:      rgba(23, 13, 46, 0.6);
+  /* backdrop-filter aplica el desenfoque al fondo que está DETRÁS
+     del elemento (los orbs), creando el efecto glass */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px); /* Compatibilidad con Safari */
+  border:          1px solid rgba(124, 58, 237, 0.3);
+  border-radius:   var(--radius-card);
+}
+
+/* Ícono del chip: tamaño fijo y color lila */
+.chip-icon {
+  width:      56px;
+  height:     56px;
+  color:      var(--color-accent);
+  flex-shrink: 0; /* Evita que se encoja si el espacio es pequeño */
+  /* Animación sutil de "pulso" para que parezca que el chip "respira" */
+  animation:  pulse-icon 3s ease-in-out infinite;
+}
+
+/* Título H1 del encabezado */
+.site-header h1 {
+  font-family: var(--font-display); /* Fuente ornamental */
+  font-size:   1.9rem;
+  font-weight: 700;
+  /* Gradiente en el texto: va de lila claro a blanco */
+  background:  linear-gradient(135deg, var(--color-accent-lt), var(--color-text));
+  /* Estas tres propiedades juntas aplican el gradiente SOLO al texto
+     (no al fondo del elemento) — truco CSS para texto degradado */
+  -webkit-background-clip: text;
+  background-clip:         text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.05em; /* Separa un poco las letras (elegante) */
+}
+
+/* Subtítulo debajo del H1 */
+.subtitle {
+  font-size:   0.78rem;
+  color:       var(--color-text-muted);
+  letter-spacing: 0.12em; /* Bastante separación → look de "sistema/código" */
+  text-transform: uppercase; /* Todo en mayúsculas */
+  margin-top:  0.2rem;
+  font-weight: 500;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   6. GRID DE TARJETAS
+   ═══════════════════════════════════════════════════════════════
+   CSS Grid es el sistema para distribuir las tarjetas en columnas.
+*/
+.cards-grid {
+  display:               grid;
+  /* repeat(auto-fit, minmax(300px, 1fr)):
+     - Crea tantas columnas como quepan.
+     - Cada columna tiene al menos 300px y como máximo 1 fracción
+       del espacio disponible.
+     - En pantallas anchas: 3 columnas. En angostas: 1. */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap:                   1.75rem; /* Espacio entre tarjetas */
+  align-items:           start;   /* Las tarjetas de distinto alto se alinean arriba */
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   7. TARJETA — Estilos comunes a las tres tarjetas
+   ═══════════════════════════════════════════════════════════════
+*/
+.card {
+  background:      rgba(23, 13, 46, 0.75); /* Fondo semi-transparente */
+  backdrop-filter: blur(20px);             /* Efecto glass */
+  -webkit-backdrop-filter: blur(20px);
+  border:          1px solid rgba(124, 58, 237, 0.25);
+  border-radius:   var(--radius-card);
+  padding:         2rem;
+  box-shadow:      var(--shadow-card);
+  /* La tarjeta "aparece" subiendo desde abajo al cargar la página */
+  animation:       slide-up 0.6s ease both;
+  /* "will-change: transform" le avisa al navegador que este elemento
+     va a animarse, para que lo prepare en la GPU (mejor rendimiento) */
+  will-change:     transform;
+  transition:      transform var(--transition), box-shadow var(--transition);
+}
+
+/* Efecto de elevación al pasar el mouse sobre una tarjeta */
+.card:hover {
+  transform:   translateY(-4px);     /* Sube 4px */
+  box-shadow:  var(--shadow-glow);   /* Agrega resplandor morado */
+}
+
+/* Retrasos de animación para que las tarjetas aparezcan en cascada
+   (primero la WiFi, luego RGB, luego temperatura) */
+.card--wifi { animation-delay: 0.1s; }
+.card--rgb  { animation-delay: 0.25s; }
+.card--temp { animation-delay: 0.4s; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   8. ENCABEZADO DE TARJETA
+   ═══════════════════════════════════════════════════════════════
+*/
+.card-header {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Ícono SVG dentro del encabezado de la tarjeta */
+.card-icon {
+  width:      28px;
+  height:     28px;
+  color:      var(--color-accent); /* Lila */
+  flex-shrink: 0;
+}
+
+/* Título H2 de cada tarjeta */
+.card-header h2 {
+  font-family:    var(--font-display);
+  font-size:      1.1rem;
+  letter-spacing: 0.07em;
+  color:          var(--color-accent-lt); /* Lila claro */
+}
+
+/* Línea separadora decorativa entre el header y el formulario */
+.card-divider {
+  height:     1px;
+  /* Gradiente horizontal: comienza con el color del acento,
+     pasa por un tono medio y termina transparente */
+  background: linear-gradient(
+    90deg,
+    var(--color-accent) 0%,
+    rgba(168, 85, 247, 0.3) 60%,
+    transparent 100%
+  );
+  margin:     1rem 0 1.5rem;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   9. FORMULARIOS, ETIQUETAS E INPUTS
+   ═══════════════════════════════════════════════════════════════
+*/
+
+/* Contenedor del formulario: los elementos se apilan verticalmente */
+.card-form {
+  display:        flex;
+  flex-direction: column; /* Apila los hijos de arriba a abajo */
+  gap:            1.25rem; /* Espacio entre cada grupo de campo */
+}
+
+/* Cada grupo contiene: label + input + hint */
+.field-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.35rem;
+}
+
+/* Estilo de las etiquetas (label) */
+.card-form label {
+  font-size:      0.72rem;
+  font-weight:    600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;     /* Mayúsculas */
+  color:          var(--color-accent-lt);
+}
+
+/* Wrapper del input: posición relativa para posicionar el ícono dentro */
+.input-wrapper {
+  position: relative;
+}
+
+/* Ícono decorativo dentro del input (a la izquierda) */
+.input-icon {
+  position: absolute;
+  left:     0.75rem;    /* Distancia desde el borde izquierdo */
+  top:      50%;        /* Centrado vertical… */
+  transform: translateY(-50%); /* …exactamente, con este truco */
+  width:    16px;
+  height:   16px;
+  color:    var(--color-text-muted);
+  pointer-events: none; /* El ícono no interfiere con clics */
+  /* Transición suave cuando el input recibe el foco */
+  transition: color var(--transition);
+}
+
+/* Estilos base para todos los campos de texto y contraseña */
+.input-wrapper input[type="text"],
+.input-wrapper input[type="password"] {
+  width:           100%; /* Ocupa todo el ancho del wrapper */
+  padding:         0.75rem 1rem 0.75rem 2.6rem; /* Espacio a la izquierda para el ícono */
+  background:      rgba(60, 20, 100, 0.4); /* Fondo oscuro semi-transparente */
+  border:          1px solid var(--color-border);
+  border-radius:   var(--radius-input);
+  color:           var(--color-text);
+  font-family:     var(--font-body);
+  font-size:       0.95rem;
+  /* Transición suave en borde y sombra al recibir foco */
+  transition:      border-color var(--transition), box-shadow var(--transition),
+                   background var(--transition);
+  /* Evita que el outline predeterminado del navegador aparezca */
+  outline:         none;
+}
+
+/* Placeholder: texto gris de sugerencia dentro del input */
+.input-wrapper input::placeholder {
+  color:      rgba(196, 181, 253, 0.45);
+  font-style: italic;
+}
+
+/* Estado :focus — cuando el input está activo (usuario escribiendo) */
+.input-wrapper input:focus {
+  border-color: var(--color-accent);           /* Borde lila brillante */
+  background:   rgba(80, 30, 130, 0.5);        /* Fondo un poco más claro */
+  box-shadow:   0 0 0 3px rgba(168, 85, 247, 0.2); /* Halo exterior suave */
+}
+
+/* Cuando el input con foco tiene el ícono al lado, lo ponemos lila */
+.input-wrapper:focus-within .input-icon {
+  color: var(--color-accent);
+}
+
+/* Texto de ayuda pequeño debajo del input */
+.field-hint {
+  font-size: 0.68rem;
+  color:     var(--color-text-muted);
+  opacity:   0.75;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   10. CONTROL RGB — Sliders y campos numéricos
+   ═══════════════════════════════════════════════════════════════
+*/
+
+/* Vista previa del color seleccionado */
+.color-preview-wrap {
+  margin-bottom: 1.25rem;
+}
+
+.color-preview {
+  width:           100%;
+  height:          80px;
+  border-radius:   var(--radius-input);
+  /* Color inicial — JavaScript lo actualiza en tiempo real */
+  background-color: rgb(124, 58, 237);
+  border:          2px solid rgba(255, 255, 255, 0.15);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  transition:      background-color 0.1s ease; /* Transición rápida al cambiar color */
+  box-shadow:      0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Texto HEX dentro del recuadro de vista previa */
+.color-hex {
+  font-family:    var(--font-display);
+  font-size:      1rem;
+  letter-spacing: 0.15em;
+  color:          var(--color-text); /* JS lo ajusta según luminancia */
+  text-shadow:    0 1px 4px rgba(0, 0, 0, 0.5);
+  transition:     color 0.2s;
+}
+
+/* Grupo de campo para los sliders RGB:
+   Tiene el label arriba, el slider abajo y el número a la derecha. */
+.field-group--rgb {
+  gap: 0.4rem;
+}
+
+/* Fila que contiene: punto de color + label + valor numérico */
+.rgb-label-row {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+}
+
+/* Punto de color redondo junto al label */
+.rgb-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  flex-shrink:   0;
+}
+.rgb-dot--r { background: var(--color-r); }
+.rgb-dot--g { background: var(--color-g); }
+.rgb-dot--b { background: var(--color-b); }
+
+/* Valor numérico del canal (el <output> que JS actualiza) */
+.rgb-value {
+  margin-left: auto; /* Lo empuja hasta el extremo derecho */
+  font-size:   0.85rem;
+  font-weight: 600;
+  color:       var(--color-text);
+  min-width:   2.5rem;
+  text-align:  right;
+}
+
+/* ── Slider (input type="range") ──
+   Los navegadores tienen estilos muy distintos para los sliders.
+   Reseteamos todo y construimos el nuestro desde cero. */
+.rgb-slider {
+  width:      calc(100% - 72px); /* Deja espacio para el input numérico */
+  height:     6px;
+  /* Elimina la apariencia nativa del navegador */
+  appearance:         none;
+  -webkit-appearance: none;
+  border-radius:      3px;
+  /* Fondo del "riel" del slider */
+  background:         rgba(120, 60, 200, 0.3);
+  outline:            none;
+  cursor:             pointer;
+  vertical-align:     middle;
+  transition:         background var(--transition);
+}
+
+/* El "pulgar" (thumb) del slider — la bolita que se arrastra.
+   Se necesita prefijo -webkit- para Chrome/Safari. */
+.rgb-slider::-webkit-slider-thumb {
+  appearance:         none;
+  -webkit-appearance: none;
+  width:        18px;
+  height:       18px;
+  border-radius: 50%;  /* Hace la bolita perfectamente redonda */
+  cursor:        pointer;
+  border:        2px solid rgba(255, 255, 255, 0.5);
+  box-shadow:    0 0 8px rgba(0, 0, 0, 0.5);
+  transition:    transform var(--transition), box-shadow var(--transition);
+}
+/* Firefox también necesita su propio selector */
+.rgb-slider::-moz-range-thumb {
+  width:        18px;
+  height:       18px;
+  border-radius: 50%;
+  border:        2px solid rgba(255, 255, 255, 0.5);
+  cursor:        pointer;
+  box-shadow:    0 0 8px rgba(0, 0, 0, 0.4);
+  transition:    transform var(--transition);
+}
+
+/* Color del thumb según el canal */
+.slider--r::-webkit-slider-thumb { background: var(--color-r); }
+.slider--g::-webkit-slider-thumb { background: var(--color-g); }
+.slider--b::-webkit-slider-thumb { background: var(--color-b); }
+.slider--r::-moz-range-thumb     { background: var(--color-r); }
+.slider--g::-moz-range-thumb     { background: var(--color-g); }
+.slider--b::-moz-range-thumb     { background: var(--color-b); }
+
+/* Al pasar el mouse o al hacer foco: el thumb crece un poco */
+.rgb-slider:hover::-webkit-slider-thumb,
+.rgb-slider:focus::-webkit-slider-thumb {
+  transform:  scale(1.2);
+  box-shadow: 0 0 14px rgba(200, 100, 255, 0.5);
+}
+
+/* Campo numérico junto al slider — para escribir el valor exacto */
+.rgb-number {
+  width:        58px;
+  padding:      0.3rem 0.4rem;
+  background:   rgba(60, 20, 100, 0.5);
+  border:       1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  color:        var(--color-text);
+  font-family:  var(--font-body);
+  font-size:    0.85rem;
+  text-align:   center;
+  outline:      none;
+  transition:   border-color var(--transition), box-shadow var(--transition);
+  /* Quita las flechas del input number en Chrome */
+  -moz-appearance: textfield;
+}
+.rgb-number::-webkit-outer-spin-button,
+.rgb-number::-webkit-inner-spin-button {
+  -webkit-appearance: none; /* Quita las flechas en Chrome/Safari */
+}
+.rgb-number:focus {
+  border-color: var(--color-accent);
+  box-shadow:   0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   11. BOTÓN PRINCIPAL
+   ═══════════════════════════════════════════════════════════════
+*/
+.btn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.5rem;   /* Espacio entre ícono SVG y texto */
+  padding:         0.75rem 1.5rem;
+  border:          none;     /* Sin borde nativo del navegador */
+  border-radius:   var(--radius-btn); /* Muy redondeado (pill) */
+  font-family:     var(--font-body);
+  font-size:       0.85rem;
+  font-weight:     600;
+  letter-spacing:  0.1em;
+  text-transform:  uppercase;
+  cursor:          pointer;   /* Muestra la mano al pasar encima */
+  transition:      transform var(--transition), box-shadow var(--transition),
+                   background var(--transition);
+  margin-top:      0.5rem;
+}
+
+/* Ícono SVG dentro del botón */
+.btn svg {
+  width:  16px;
+  height: 16px;
+  stroke: currentColor; /* Hereda el color del botón */
+}
+
+/* Variante principal: fondo con gradiente morado */
+.btn--primary {
+  /* Gradiente de morado oscuro a lila brillante */
+  background:  linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color:       #fff;
+  box-shadow:  var(--shadow-btn);
+}
+
+/* Hover: el botón sube y brilla más */
+.btn--primary:hover {
+  transform:   translateY(-2px);
+  box-shadow:  0 6px 28px rgba(124, 58, 237, 0.75);
+  background:  linear-gradient(135deg, var(--color-primary-lt) 0%, #c084fc 100%);
+}
+
+/* Al hacer clic: el botón baja un poco (efecto de presión) */
+.btn--primary:active {
+  transform:  translateY(0);
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.5);
+}
+
+/* Accesibilidad: muestra un halo al navegar con teclado */
+.btn:focus-visible {
+  outline:        2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   12. TARJETA DE TEMPERATURA
+   ═══════════════════════════════════════════════════════════════
+*/
+
+/* Área central de visualización del valor */
+.temp-display {
+  padding:      1.25rem 0;
+  text-align:   center;
+}
+
+/* Fila que tiene el número grande y la unidad °C */
+.temp-value-wrap {
+  display:     flex;
+  align-items: flex-start; /* La unidad se alinea arriba */
+  justify-content: center;
+  gap:         0.25rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Número grande de temperatura */
+.temp-number {
+  font-family:  var(--font-display);
+  font-size:    4.5rem;
+  font-weight:  700;
+  line-height:  1;
+  /* Gradiente lila en el número */
+  background:   linear-gradient(180deg, var(--color-text) 0%, var(--color-accent-lt) 100%);
+  -webkit-background-clip: text;
+  background-clip:         text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Símbolo °C pequeño en la esquina superior derecha del número */
+.temp-unit {
+  font-family:  var(--font-body);
+  font-size:    1.5rem;
+  font-weight:  300;
+  color:        var(--color-text-muted);
+  padding-top:  0.5rem; /* Baja para alinearse con la parte alta del número */
+}
+
+/* Contenedor de la barra de temperatura */
+.temp-bar-wrap {
+  margin:       0 auto 1.25rem;
+  max-width:    240px;
+}
+
+/* El "riel" gris de la barra */
+.temp-bar-track {
+  height:        8px;
+  background:    rgba(100, 50, 160, 0.3);
+  border-radius: 4px;
+  overflow:      hidden; /* La barra de relleno no se sale del riel */
+}
+
+/* La barra de relleno que representa el valor de temperatura.
+   Su width se controla desde JavaScript o inline style. */
+.temp-bar-fill {
+  height:     100%;
+  border-radius: 4px;
+  /* Gradiente de frío (lila) a caliente (naranja) */
+  background: linear-gradient(90deg, #818cf8 0%, #a855f7 40%, #f87171 100%);
+  transition: width 0.5s ease; /* Animación suave al cambiar el ancho */
+}
+
+/* Etiquetas de escala bajo la barra */
+.temp-bar-labels {
+  display:         flex;
+  justify-content: space-between;
+  font-size:       0.65rem;
+  color:           var(--color-text-muted);
+  margin-top:      0.3rem;
+  opacity:         0.7;
+}
+
+/* Fila del indicador de estado ("En línea", "Esperando…") */
+.temp-status {
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  gap:         0.5rem;
+  font-size:   0.8rem;
+  color:       var(--color-text-muted);
+}
+
+/* Círculo pulsante de estado (verde = OK, gris = esperando) */
+.status-dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    var(--color-accent);
+  /* La animación "blink" hace que parpadee suavemente */
+  animation:     blink 2s ease-in-out infinite;
+  flex-shrink:   0;
+}
+
+/* Nota de información bajo el display de temperatura */
+.temp-note {
+  font-size:   0.7rem;
+  color:       var(--color-text-muted);
+  text-align:  center;
+  opacity:     0.6;
+  line-height: 1.6;
+  margin-top:  1rem;
+  padding-top: 1rem;
+  /* Línea punteada arriba como separador sutil */
+  border-top:  1px dashed rgba(124, 58, 237, 0.25);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   13. PIE DE PÁGINA (site-footer)
+   ═══════════════════════════════════════════════════════════════
+*/
+.site-footer {
+  text-align:  center;
+  margin-top:  2.5rem;
+  padding:     1rem;
+  font-size:   0.72rem;
+  color:       var(--color-text-muted);
+  opacity:     0.5;
+  letter-spacing: 0.08em;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   14. ANIMACIONES (@keyframes)
+   ═══════════════════════════════════════════════════════════════
+   Los @keyframes definen QUÉ cambia en una animación.
+   Se invocan con la propiedad "animation:" en el selector.
+*/
+
+/* slide-up: la tarjeta aparece subiendo desde abajo con fade-in */
+@keyframes slide-up {
+  from {
+    opacity:   0;
+    transform: translateY(28px); /* Empieza 28px abajo */
+  }
+  to {
+    opacity:   1;
+    transform: translateY(0);    /* Llega a su posición normal */
+  }
+}
+
+/* drift: los orbs se mueven suavemente (traslación + escala) */
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(30px, -40px) scale(1.08);
+  }
+}
+
+/* pulse-icon: el ícono del chip "late" suavemente */
+@keyframes pulse-icon {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.75; transform: scale(0.95); }
+}
+
+/* blink: el punto de estado parpadea */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   15. RESPONSIVE — Adaptaciones para pantallas pequeñas
+   ═══════════════════════════════════════════════════════════════
+   Los @media queries aplican estilos SOLO cuando se cumplen
+   ciertas condiciones (ej: pantalla menor a 600px).
+
+   max-width: 600px → aplica cuando el ancho de la ventana
+   es de 600px o menos (celulares).
+*/
+@media (max-width: 600px) {
+
+  /* Reducir relleno del wrapper en móvil */
+  .wrapper {
+    padding: 1rem;
+  }
+
+  /* El header apila el ícono y el texto verticalmente */
+  .site-header {
+    flex-direction: column;
+    text-align:     center;
+    gap:            0.75rem;
+    padding:        1.25rem 1rem;
+  }
+
+  /* Título más pequeño en móvil */
+  .site-header h1 {
+    font-size: 1.5rem;
+  }
+
+  /* Las tarjetas tienen menos relleno en móvil */
+  .card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  /* El número de temperatura es más pequeño en móvil */
+  .temp-number {
+    font-size: 3.5rem;
+  }
+
+  /* El slider ocupa más espacio (menos lugar para el número) */
+  .rgb-slider {
+    width: calc(100% - 66px);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║   Panel de Control ESP32 — Sistemas en Tiempo Real          ║
+  ║   Archivo: index.html                                        ║
+  ║   Descripción: Interfaz web para configurar WiFi,            ║
+  ║                color RGB y ver temperatura desde una ESP32.  ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+  ESTRUCTURA GENERAL DEL DOCUMENTO:
+  ─────────────────────────────────
+  El archivo HTML está dividido en dos secciones principales:
+    1. <head>  → Metadatos, título, fuentes y enlace al CSS.
+    2. <body>  → Todo el contenido visible de la página.
+
+  Dentro del <body> hay tres "tarjetas" (cards):
+    • Tarjeta 1: Configuración WiFi (SSID + contraseña)
+    • Tarjeta 2: Control de color RGB
+    • Tarjeta 3: Lectura de temperatura
+-->
+
+<html lang="es">
+
+<!-- ═══════════════════════════════════════════════════
+     HEAD — Cabecera del documento (no es visible)
+     Contiene información que el navegador necesita
+     antes de mostrar la página.
+     ═══════════════════════════════════════════════════ -->
+<head>
+  <!-- Define la codificación de caracteres.
+       UTF-8 permite usar tildes, ñ y otros símbolos. -->
+  <meta charset="UTF-8">
+
+  <!-- Hace que la página se vea bien en celulares.
+       "width=device-width" adapta el ancho al dispositivo.
+       "initial-scale=1.0" evita el zoom automático al cargar. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Título que aparece en la pestaña del navegador -->
+  <title>ESP32 · Panel de Control</title>
+
+  <!-- Importa dos fuentes de Google Fonts:
+       - "Cinzel" → fuente elegante para títulos (estilo grabado)
+       - "Raleway" → fuente moderna para textos y etiquetas
+       El parámetro display=swap evita el parpadeo al cargar. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Enlaza este HTML con el archivo de estilos CSS.
+       Todos los colores, tamaños y animaciones están allá. -->
+  <link rel="stylesheet" href="app.css">
+</head>
+
+
+<!-- ═══════════════════════════════════════════════════
+     BODY — Cuerpo del documento (esto se ve en pantalla)
+     ═══════════════════════════════════════════════════ -->
+<body>
+
+  <!-- ── FONDO DECORATIVO ────────────────────────────
+       Este div no tiene contenido de texto, pero CSS lo
+       usa para dibujar círculos de luz difusos de fondo
+       (llamados "orbs"). Crean la sensación de profundidad
+       tipo neón/glassmorphism.
+  ─────────────────────────────────────────────────── -->
+  <div class="bg-orbs" aria-hidden="true">
+    <!-- Cada "orb" es un círculo borroso de color diferente.
+         aria-hidden="true" significa que los lectores de
+         pantalla los ignorarán (son puramente decorativos). -->
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+
+  <!-- ── CONTENEDOR PRINCIPAL ────────────────────────
+       Todo el contenido de la página vive dentro de este div.
+       En CSS tiene class="wrapper", que centra todo y
+       define el ancho máximo de la página.
+  ─────────────────────────────────────────────────── -->
+  <div class="wrapper">
+
+
+    <!-- ── ENCABEZADO / HEADER ───────────────────────
+         Muestra el logo y el título de la aplicación.
+    ─────────────────────────────────────────────────── -->
+    <header class="site-header">
+      <!-- Ícono SVG de un microchip, dibujado directamente
+           en HTML para no necesitar una imagen externa.
+           Cada <rect> es un rectángulo, cada <line> es una
+           línea que representa los pines del chip. -->
+      <svg class="chip-icon" viewBox="0 0 64 64" fill="none"
+           xmlns="http://www.w3.org/2000/svg" aria-label="Ícono de chip ESP32">
+        <!-- Cuerpo central del chip -->
+        <rect x="16" y="16" width="32" height="32" rx="4"
+              stroke="currentColor" stroke-width="2"/>
+        <!-- Texto ESP32 dentro del chip -->
+        <text x="32" y="35" text-anchor="middle"
+              font-family="Raleway" font-size="7"
+              fill="currentColor" font-weight="600">ESP32</text>
+        <!-- Pines del lado izquierdo del chip -->
+        <line x1="8"  y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8"  y1="29" x2="16" y2="29" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8"  y1="36" x2="16" y2="36" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8"  y1="43" x2="16" y2="43" stroke="currentColor" stroke-width="1.5"/>
+        <!-- Pines del lado derecho -->
+        <line x1="48" y1="22" x2="56" y2="22" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="48" y1="29" x2="56" y2="29" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="48" y1="36" x2="56" y2="36" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="48" y1="43" x2="56" y2="43" stroke="currentColor" stroke-width="1.5"/>
+        <!-- Pines superiores -->
+        <line x1="22" y1="8"  x2="22" y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="32" y1="8"  x2="32" y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="42" y1="8"  x2="42" y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <!-- Pines inferiores -->
+        <line x1="22" y1="48" x2="22" y2="56" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="32" y1="48" x2="32" y2="56" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="42" y1="48" x2="42" y2="56" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+
+      <!-- Título principal y subtítulo -->
+      <div class="header-text">
+        <h1>Panel de Control</h1>
+        <p class="subtitle">Sistemas en Tiempo Real · ESP-IDF</p>
+      </div>
+    </header>
+
+
+    <!-- ── GRID DE TARJETAS ───────────────────────────
+         Contenedor que organiza las tres tarjetas
+         usando CSS Grid (definido en styles.css).
+    ─────────────────────────────────────────────────── -->
+    <main class="cards-grid">
+
+
+      <!-- ╔═════════════════════════════════════════╗
+           ║  TARJETA 1 — Configuración WiFi         ║
+           ╚═════════════════════════════════════════╝
+           Permite escribir el nombre de la red (SSID)
+           y la contraseña para que la ESP32 se conecte. -->
+      <section class="card card--wifi" aria-labelledby="wifi-title">
+
+        <!-- Encabezado de la tarjeta: ícono + título -->
+        <div class="card-header">
+          <!-- Ícono WiFi dibujado en SVG -->
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none"
+               xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Arco exterior (señal fuerte) -->
+            <path d="M1.5 8.5C5.4 4.6 10.4 2.5 12 2.5s6.6 2.1 10.5 6"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <!-- Arco medio (señal media) -->
+            <path d="M5 12c1.9-1.9 4.3-3 7-3s5.1 1.1 7 3"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <!-- Arco interior (señal débil) -->
+            <path d="M8.5 15.5c.9-.9 2.2-1.5 3.5-1.5s2.6.6 3.5 1.5"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <!-- Punto central (dispositivo conectado) -->
+            <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+          </svg>
+          <!-- ID "wifi-title" conecta esta etiqueta con
+               aria-labelledby del <section> de arriba,
+               mejorando la accesibilidad. -->
+          <h2 id="wifi-title">Configuración WiFi</h2>
+        </div>
+
+        <!-- Línea decorativa bajo el encabezado -->
+        <div class="card-divider"></div>
+
+        <!-- Formulario de WiFi.
+             action="#" evita que recargue la página al enviar.
+             En el futuro, esto apuntaría al endpoint de la ESP32. -->
+        <form class="card-form" action="#" method="post" id="wifi-form">
+
+          <!-- ── Campo SSID ─────────────────────────
+               SSID = Service Set Identifier = nombre de la red WiFi. -->
+          <div class="field-group">
+            <!-- <label> asocia el texto "Red WiFi (SSID)" con el
+                 <input> de abajo a través de "for" e "id" iguales.
+                 Al hacer clic en el label, el input se activa. -->
+            <label for="ssid">Red WiFi (SSID)</label>
+            <div class="input-wrapper">
+              <!-- Ícono dentro del campo (solo decorativo) -->
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none"
+                   xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2"
+                      stroke="currentColor" stroke-width="1.8"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <!-- Campo de texto para el nombre de la red.
+                   - type="text"     → acepta cualquier texto
+                   - id="ssid"       → vinculado al label
+                   - name="ssid"     → nombre al enviar el formulario
+                   - maxlength="32"  → WiFi permite máximo 32 caracteres en el SSID
+                   - required        → no permite enviar vacío
+                   - autocomplete    → sugiere redes guardadas -->
+              <input
+                type="text"
+                id="ssid"
+                name="ssid"
+                maxlength="32"
+                placeholder="Nombre de la red WiFi"
+                required
+                autocomplete="off"
+                spellcheck="false"
+              >
+            </div>
+            <!-- Texto de ayuda pequeño bajo el campo -->
+            <span class="field-hint">Máximo 32 caracteres · distingue mayúsculas</span>
+          </div>
+
+          <!-- ── Campo Contraseña ────────────────────
+               WPA2 requiere mínimo 8 caracteres. -->
+          <div class="field-group">
+            <label for="password">Contraseña</label>
+            <div class="input-wrapper">
+              <!-- Ícono de llave -->
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none"
+                   xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8" cy="14" r="4" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 10l8-6" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M18 6l2 2" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M16 10l1 1" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <!-- Campo de contraseña.
+                   - type="password"  → oculta los caracteres con ●
+                   - minlength="8"    → mínimo exigido por WPA2
+                   - maxlength="64"   → límite estándar de WPA2
+                   - required         → obligatorio -->
+              <input
+                type="password"
+                id="password"
+                name="password"
+                minlength="8"
+                maxlength="64"
+                placeholder="Mínimo 8 caracteres"
+                required
+                autocomplete="current-password"
+              >
+            </div>
+            <span class="field-hint">WPA2 · mínimo 8 caracteres</span>
+          </div>
+
+          <!-- Botón para enviar la configuración WiFi.
+               type="submit" envía el formulario con id="wifi-form". -->
+          <button type="submit" class="btn btn--primary">
+            <!-- Ícono de señal WiFi dentro del botón -->
+            <svg viewBox="0 0 24 24" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"/>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"/>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="20" r="1" fill="currentColor"/>
+            </svg>
+            Conectar a WiFi
+          </button>
+
+        </form>
+      </section>
+
+
+      <!-- ╔═════════════════════════════════════════╗
+           ║  TARJETA 2 — Control de Color RGB       ║
+           ╚═════════════════════════════════════════╝
+           Permite ajustar los tres canales de color (R, G, B)
+           que se enviarán al LED RGB de la ESP32.
+           Rango de cada canal: 0 (apagado) a 255 (máximo). -->
+      <section class="card card--rgb" aria-labelledby="rgb-title">
+
+        <div class="card-header">
+          <!-- Ícono de paleta de colores -->
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none"
+               xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+            <circle cx="9"  cy="9"  r="2" fill="currentColor"/>
+            <circle cx="15" cy="9"  r="2" fill="currentColor"/>
+            <circle cx="9"  cy="15" r="2" fill="currentColor"/>
+            <circle cx="15" cy="15" r="2" fill="currentColor"/>
+            <circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.5"/>
+          </svg>
+          <h2 id="rgb-title">Control RGB</h2>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- Vista previa del color resultante.
+             Este div cambia de color en tiempo real cuando
+             el usuario mueve los sliders (controlado por JS en el HTML). -->
+        <div class="color-preview-wrap">
+          <div class="color-preview" id="color-preview" aria-label="Vista previa del color seleccionado">
+            <!-- Texto que muestra el valor HEX del color.
+                 Se actualiza con JavaScript. -->
+            <span class="color-hex" id="color-hex">#7C3AED</span>
+          </div>
+        </div>
+
+        <form class="card-form" action="#" method="post" id="rgb-form">
+
+          <!-- ── Canal Rojo (R) ──────────────────────
+               Slider + campo numérico para el canal rojo. -->
+          <div class="field-group field-group--rgb">
+            <div class="rgb-label-row">
+              <!-- Punto de color rojo para identificar el canal -->
+              <span class="rgb-dot rgb-dot--r" aria-hidden="true"></span>
+              <label for="red">Rojo (R)</label>
+              <!-- Número que muestra el valor actual del slider.
+                   "output" es una etiqueta semántica HTML para
+                   valores calculados/controlados. -->
+              <output class="rgb-value" id="red-val" for="red">124</output>
+            </div>
+            <!-- Slider (barra deslizante).
+                 - type="range"  → crea un control deslizante
+                 - min="0"       → valor mínimo (LED apagado)
+                 - max="255"     → valor máximo (LED al 100%)
+                 - value="124"   → valor inicial
+                 - oninput       → JavaScript que actualiza la vista previa
+                                   cada vez que se mueve el slider -->
+            <input
+              type="range"
+              id="red"
+              name="red"
+              min="0"
+              max="255"
+              value="124"
+              class="rgb-slider slider--r"
+              oninput="updateColor()"
+              aria-valuemin="0"
+              aria-valuemax="255"
+              aria-label="Canal rojo, valor entre 0 y 255"
+            >
+            <!-- Campo numérico que muestra/permite escribir el valor exacto.
+                 Sincronizado con el slider. -->
+            <input
+              type="number"
+              name="red_num"
+              min="0"
+              max="255"
+              value="124"
+              class="rgb-number"
+              aria-label="Valor numérico del canal rojo"
+              oninput="syncSliderFromNumber(this,'red')"
+            >
+          </div>
+
+          <!-- ── Canal Verde (G) ────────────────────── -->
+          <div class="field-group field-group--rgb">
+            <div class="rgb-label-row">
+              <span class="rgb-dot rgb-dot--g" aria-hidden="true"></span>
+              <label for="green">Verde (G)</label>
+              <output class="rgb-value" id="green-val" for="green">58</output>
+            </div>
+            <input
+              type="range"
+              id="green"
+              name="green"
+              min="0"
+              max="255"
+              value="58"
+              class="rgb-slider slider--g"
+              oninput="updateColor()"
+              aria-valuemin="0"
+              aria-valuemax="255"
+              aria-label="Canal verde, valor entre 0 y 255"
+            >
+            <input
+              type="number"
+              name="green_num"
+              min="0"
+              max="255"
+              value="58"
+              class="rgb-number"
+              aria-label="Valor numérico del canal verde"
+              oninput="syncSliderFromNumber(this,'green')"
+            >
+          </div>
+
+          <!-- ── Canal Azul (B) ─────────────────────── -->
+          <div class="field-group field-group--rgb">
+            <div class="rgb-label-row">
+              <span class="rgb-dot rgb-dot--b" aria-hidden="true"></span>
+              <label for="blue">Azul (B)</label>
+              <output class="rgb-value" id="blue-val" for="blue">237</output>
+            </div>
+            <input
+              type="range"
+              id="blue"
+              name="blue"
+              min="0"
+              max="255"
+              value="237"
+              class="rgb-slider slider--b"
+              oninput="updateColor()"
+              aria-valuemin="0"
+              aria-valuemax="255"
+              aria-label="Canal azul, valor entre 0 y 255"
+            >
+            <input
+              type="number"
+              name="blue_num"
+              min="0"
+              max="255"
+              value="237"
+              class="rgb-number"
+              aria-label="Valor numérico del canal azul"
+              oninput="syncSliderFromNumber(this,'blue')"
+            >
+          </div>
+
+          <!-- Botón de envío del color RGB -->
+          <button type="submit" class="btn btn--primary">
+            <svg viewBox="0 0 24 24" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor"
+                    stroke-width="2" stroke-linejoin="round"/>
+              <path d="M2 17l10 5 10-5" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12l10 5 10-5" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Enviar Color
+          </button>
+
+        </form>
+      </section>
+
+
+      <!-- ╔═════════════════════════════════════════╗
+           ║  TARJETA 3 — Lectura de Temperatura     ║
+           ╚═════════════════════════════════════════╝
+           Muestra la temperatura que reporta el sensor
+           conectado a la ESP32. En esta versión es estática,
+           pero en producción se actualizaría por AJAX/WebSocket. -->
+      <section class="card card--temp" aria-labelledby="temp-title">
+
+        <div class="card-header">
+          <!-- Ícono de termómetro -->
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none"
+               xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Tubo del termómetro -->
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"
+                  stroke="currentColor" stroke-width="2"/>
+            <!-- Líneas de graduación del termómetro -->
+            <line x1="10" y1="6"  x2="8"  y2="6"  stroke="currentColor" stroke-width="1.5"/>
+            <line x1="10" y1="9"  x2="8"  y2="9"  stroke="currentColor" stroke-width="1.5"/>
+            <line x1="10" y1="12" x2="8"  y2="12" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <h2 id="temp-title">Temperatura</h2>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <!-- Área de visualización de la temperatura.
+             role="status" indica a los lectores de pantalla
+             que este valor puede actualizarse dinámicamente. -->
+        <div class="temp-display" role="status" aria-live="polite">
+
+          <!-- Valor numérico principal.
+               El <span id="temp-value"> es el que se actualizaría
+               desde JavaScript cuando lleguen datos del ESP32.
+               Por ahora tiene "-- " como valor vacío de muestra. -->
+          <div class="temp-value-wrap">
+            <span class="temp-number" id="temp-value">--</span>
+            <!-- Unidad de temperatura con el símbolo de grado -->
+            <span class="temp-unit">°C</span>
+          </div>
+
+          <!-- Barra de progreso que representa visualmente
+               qué tan alta está la temperatura en una escala de 0–100°C. -->
+          <div class="temp-bar-wrap" aria-hidden="true">
+            <div class="temp-bar-track">
+              <!-- La anchura de esta barra se podría actualizar
+                   con JavaScript: bar.style.width = (temp/100*100)+'%' -->
+              <div class="temp-bar-fill" id="temp-bar" style="width: 0%"></div>
+            </div>
+            <!-- Etiquetas de la escala de la barra -->
+            <div class="temp-bar-labels">
+              <span>0°C</span>
+              <span>50°C</span>
+              <span>100°C</span>
+            </div>
+          </div>
+
+          <!-- Mensaje de estado que indica si los datos son recientes.
+               En producción cambiaría entre "En línea", "Sin señal", etc. -->
+          <div class="temp-status">
+            <!-- Indicador visual de estado (círculo pulsante) -->
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-text" id="temp-status-text">
+              Esperando datos del sensor…
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Nota informativa sobre el sensor -->
+        <p class="temp-note">
+          Sensor conectado al GPIO del ESP32.<br>
+          Los datos se actualizan vía HTTP cuando el ESP32 esté en línea.
+        </p>
+
+      </section>
+
+    </main><!-- fin .cards-grid -->
+
+
+    <!-- ── PIE DE PÁGINA ──────────────────────────────
+         Información del proyecto.
+    ─────────────────────────────────────────────────── -->
+    <footer class="site-footer">
+      <p>Proyecto · Sistemas en Tiempo Real &nbsp;·&nbsp; ESP-IDF &nbsp;·&nbsp; ESP32</p>
+    </footer>
+
+  </div><!-- fin .wrapper -->
+
+
+  <!-- ════════════════════════════════════════════════
+       JAVASCRIPT EMBEBIDO
+       ════════════════════════════════════════════════
+       Pequeño bloque de JS al final del <body> (para que
+       el HTML ya esté cargado cuando se ejecute).
+       Solo maneja la interactividad local de la tarjeta RGB:
+         1. Actualizar la vista previa de color.
+         2. Sincronizar slider ↔ campo numérico.
+  ═══════════════════════════════════════════════════ -->
+  <script>
+    /**
+     * updateColor()
+     * ─────────────
+     * Se llama cada vez que el usuario mueve alguno de los
+     * tres sliders de color (oninput="updateColor()").
+     *
+     * Hace tres cosas:
+     *   1. Lee los valores actuales de R, G, B de los sliders.
+     *   2. Actualiza los campos numéricos y los <output>.
+     *   3. Cambia el color de fondo del recuadro de vista previa.
+     *   4. Actualiza el texto HEX.
+     */
+    function updateColor() {
+      // Lee el valor de cada slider usando getElementById.
+      // El valor de un input tipo range es una cadena de texto,
+      // por eso parseInt() lo convierte a número entero.
+      const r = parseInt(document.getElementById('red').value);
+      const g = parseInt(document.getElementById('green').value);
+      const b = parseInt(document.getElementById('blue').value);
+
+      // Actualiza los <output> que muestran el número junto al slider.
+      document.getElementById('red-val').textContent   = r;
+      document.getElementById('green-val').textContent = g;
+      document.getElementById('blue-val').textContent  = b;
+
+      // Actualiza los campos numéricos para mantenerlos sincronizados
+      // con los sliders (los encuentra por name usando querySelector).
+      document.querySelector('[name="red_num"]').value   = r;
+      document.querySelector('[name="green_num"]').value = g;
+      document.querySelector('[name="blue_num"]').value  = b;
+
+      // Construye el color en formato CSS "rgb(r, g, b)"
+      // y lo aplica como fondo del div de vista previa.
+      const colorCSS = `rgb(${r}, ${g}, ${b})`;
+      document.getElementById('color-preview').style.backgroundColor = colorCSS;
+
+      // Convierte cada canal a hexadecimal de 2 dígitos.
+      // toString(16) convierte a hex; padStart(2,'0') asegura
+      // que tenga 2 dígitos (por ejemplo: 5 → "05").
+      const hex = '#'
+        + r.toString(16).padStart(2, '0')
+        + g.toString(16).padStart(2, '0')
+        + b.toString(16).padStart(2, '0');
+      document.getElementById('color-hex').textContent = hex.toUpperCase();
+
+      // Ajusta el color del texto del HEX según la luminosidad
+      // para que sea legible tanto sobre colores claros como oscuros.
+      // Fórmula estándar de luminancia percibida (coeficientes BT.601).
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+      document.getElementById('color-hex').style.color
+        = luminance > 128 ? '#1a0533' : '#f0e6ff';
+    }
+
+    /**
+     * syncSliderFromNumber(inputEl, sliderId)
+     * ─────────────────────────────────────────
+     * Se llama cuando el usuario escribe un número directamente
+     * en el campo numérico (en vez de mover el slider).
+     *
+     * Parámetros:
+     *   inputEl  → el elemento <input type="number"> que disparó el evento
+     *   sliderId → el id del slider correspondiente ('red', 'green' o 'blue')
+     *
+     * Ajusta el valor al rango 0-255 y luego llama a updateColor().
+     */
+    function syncSliderFromNumber(inputEl, sliderId) {
+      // Clamp: asegura que el valor esté entre 0 y 255.
+      // Math.min y Math.max se combinan para limitar el rango.
+      let val = Math.min(255, Math.max(0, parseInt(inputEl.value) || 0));
+      inputEl.value = val; // Corrige el campo si el usuario escribió fuera del rango.
+
+      // Actualiza el slider correspondiente con el nuevo valor.
+      document.getElementById(sliderId).value = val;
+
+      // Vuelve a calcular el color con los nuevos valores.
+      updateColor();
+    }
+
+    // Llama a updateColor() una vez al cargar la página
+    // para que la vista previa muestre el color inicial (#7C3AED ≈ morado).
+    updateColor();
+  </script>
+
+</body>
+</html>
