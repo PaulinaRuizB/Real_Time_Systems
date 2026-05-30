@@ -63,6 +63,8 @@ static void wifi_app_event_handler(void *arg, esp_event_base_t event_base, int32
 
 			case WIFI_EVENT_STA_START:
 				ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
+				esp_wifi_connect(); // Inicia el intento de conexión al router
+
 				break;
 
 			case WIFI_EVENT_STA_CONNECTED:
@@ -167,10 +169,22 @@ static void wifi_app_soft_ap_config(void)
 	ESP_ERROR_CHECK(esp_netif_dhcps_start(esp_netif_ap));						///> Start the AP DHCP server (for connecting stations e.g. your mobile device)
 
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));						///> Setting the mode as Access Point / Station Mode
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));			///> Set our configuration
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));			///> Set our configuration
 	ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_AP_BANDWIDTH));		///> Our default bandwidth 20 MHz
 	ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_STA_POWER_SAVE));						///> Power save set to "NONE"
 
+}
+
+static void wifi_app_sta_config(void)
+{
+    wifi_config_t sta_config = {
+        .sta = {
+            .ssid     = WIFI_STA_SSID,
+            .password = WIFI_STA_PASSWORD,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
 }
 
 /**
@@ -190,19 +204,12 @@ static void wifi_app_task(void *pvParameters)
 	// SoftAP config
 	wifi_app_soft_ap_config();
 
+	wifi_app_sta_config();
+
 	// Start WiFi
 	ESP_ERROR_CHECK(esp_wifi_start());
 
-		// Configurar las credenciales del router y conectar como Station
-	wifi_config_t sta_config = {
-		.sta = {
-			.ssid     = WIFI_STA_SSID,      // nombre de tu red de casa
-			.password = WIFI_STA_PASSWORD,  // contraseña de tu red de casa
-		},
-	};
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
-	esp_wifi_connect(); // Inicia el intento de conexión al router
-
+	
 	// Send first event message
 	wifi_app_send_message(WIFI_APP_MSG_START_HTTP_SERVER);
 	

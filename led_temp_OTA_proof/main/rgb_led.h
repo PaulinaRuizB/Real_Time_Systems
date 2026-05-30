@@ -8,6 +8,8 @@
 #ifndef MAIN_RGB_LED_H_
 #define MAIN_RGB_LED_H_
 
+#include "driver/ledc.h"
+
 // RGB LED GPIOs
 #define RGB_LED_RED_GPIO		21
 #define RGB_LED_GREEN_GPIO		22
@@ -19,10 +21,10 @@
 // RGB LED configuration
 typedef struct
 {
-	int channel;
+	ledc_channel_t channel;
 	int gpio;
-	int mode;
-	int timer_index;
+	ledc_sleep_mode_t mode;
+	ledc_timer_t timer_index;
 } ledc_info_t;
 // ledc_info_t ledc_ch[RGB_LED_CHANNEL_NUM]; Move this declaration to the top of rgb_led.c to avoid linker errors
 
