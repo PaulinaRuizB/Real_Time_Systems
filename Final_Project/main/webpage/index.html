@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Control System</title>
+
+    <link rel="stylesheet" href="app.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Environmental Control System</h1>
+        <p>Real-Time Monitoring and Control Dashboard</p>
+    </header>
+
+    <main class="dashboard">
+
+        <!-- STATUS -->
+        <section class="card">
+            <h2>System Status</h2>
+
+            <div class="status-grid">
+
+                <div class="status-item">
+                    <span>Temperature</span>
+                    <strong>24.5 °C</strong>
+                </div>
+
+                <div class="status-item">
+                    <span>Fan Speed</span>
+                    <strong>45 %</strong>
+                </div>
+
+                <div class="status-item">
+                    <span>Curtain Position</span>
+                    <strong>70 %</strong>
+                </div>
+
+                <div class="status-item">
+                    <span>System</span>
+                    <strong class="online">ONLINE</strong>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FAN -->
+        <section class="card">
+            <h2>Fan Control</h2>
+
+            <label>Mode</label>
+
+            <div class="button-group">
+                <button>Automatic</button>
+                <button>Manual</button>
+            </div>
+
+            <label>Fan Speed (%)</label>
+            <input type="range" min="0" max="100" value="45">
+
+            <label>Desired Temperature (°C)</label>
+            <input type="number" placeholder="25">
+
+            <label>Maximum Temperature (°C)</label>
+            <input type="number" placeholder="35">
+
+            <button class="primary-btn">Apply Settings</button>
+        </section>
+
+        <!-- CURTAIN -->
+        <section class="card">
+            <h2>Curtain Control</h2>
+
+            <label>Mode</label>
+
+            <div class="button-group">
+                <button>Manual</button>
+                <button>Schedule</button>
+            </div>
+
+            <label>Opening Percentage (%)</label>
+            <input type="range" min="0" max="100" value="70">
+
+            <button class="primary-btn">Set Position</button>
+        </section>
+
+        <!-- SCHEDULE -->
+        <section class="card">
+            <h2>Curtain Schedule</h2>
+
+            <label>Hour</label>
+            <input type="time">
+
+            <label>Opening (%)</label>
+            <input type="number" min="0" max="100">
+
+            <button class="primary-btn">Add Schedule</button>
+
+            <div class="schedule-list">
+                <p>08:00 → 100%</p>
+                <p>18:00 → 0%</p>
+            </div>
+        </section>
+
+        <!-- RGB -->
+        <section class="card">
+            <h2>RGB Lighting</h2>
+
+            <label>Select Color</label>
+            <input type="color" value="#1FC9BA">
+
+            <label>Brightness (%)</label>
+            <input type="range" min="0" max="100" value="80">
+
+            <button class="primary-btn">Apply Color</button>
+        </section>
+
+        <!-- WIFI -->
+        <section class="card">
+            <h2>WiFi Configuration</h2>
+
+            <h3>Station Mode</h3>
+
+            <input type="text" placeholder="SSID">
+            <input type="password" placeholder="Password">
+
+            <button class="primary-btn">Connect</button>
+
+            <hr>
+
+            <h3>Access Point</h3>
+
+            <input type="text" placeholder="AP Name">
+            <input type="password" placeholder="AP Password">
+
+            <button class="primary-btn">Update AP</button>
+        </section>
+
+        <!-- OTA -->
+        <section class="card">
+            <h2>OTA Firmware Update</h2>
+
+            <input type="file">
+
+            <button class="primary-btn">Upload Firmware</button>
+        </section>
+
+    </main>
+
+</body>
+
+</html>
