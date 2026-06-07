@@ -25,7 +25,7 @@ typedef void (*wifi_connected_event_callback_t)(void);
 #define WIFI_AP_IP					"192.168.0.1"		// AP default IP
 #define WIFI_AP_GATEWAY				"192.168.0.1"		// AP default Gateway (should be the same as the IP)
 #define WIFI_AP_NETMASK				"255.255.255.0"		// AP netmask
-#define WIFI_AP_BANDWIDTH			WIFI_BW_HT20		// AP bandwidth 20 MHz (40 MHz is the other option)
+#define WIFI_AP_BANDWIDTH			WIFI_BW20		// AP bandwidth 20 MHz (40 MHz is the other option)
 #define WIFI_STA_POWER_SAVE			WIFI_PS_NONE		// Power save not used
 #define MAX_SSID_LENGTH				32					// IEEE standard maximum
 #define MAX_PASSWORD_LENGTH			64					// IEEE standard maximum

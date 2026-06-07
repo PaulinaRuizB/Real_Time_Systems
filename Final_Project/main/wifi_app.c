@@ -446,7 +446,7 @@ void connect_to_wifi(void) {
 		memset(wifi_config, 0x00, sizeof(wifi_config_t));
    		strncpy((char*)wifi_config->sta.ssid, ssid, sizeof(wifi_config->sta.ssid));
     	strncpy((char*)wifi_config->sta.password, password, sizeof(wifi_config->sta.password));
-   		esp_wifi_set_config(ESP_IF_WIFI_STA, wifi_config);
+   		esp_wifi_set_config(WIFI_IF_STA, wifi_config);
    		wifi_app_connect_sta();
 
 	       // Do some work
@@ -631,7 +631,7 @@ static void wifi_app_soft_ap_config(void)
 	ESP_ERROR_CHECK(esp_netif_dhcps_start(esp_netif_ap));						///> Start the AP DHCP server (for connecting stations e.g. your mobile device)
 
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));						///> Setting the mode as Access Point / Station Mode
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));			///> Set our configuration
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));			///> Set our configuration
 	ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_AP_BANDWIDTH));		///> Our default bandwidth 20 MHz
 	ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_STA_POWER_SAVE));						///> Power save set to "NONE"
 
@@ -642,7 +642,7 @@ static void wifi_app_soft_ap_config(void)
  */
 static void wifi_app_connect_sta(void)
 {
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, wifi_app_get_wifi_config()));
+	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, wifi_app_get_wifi_config()));
 	ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
