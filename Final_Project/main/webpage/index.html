@@ -76,7 +76,7 @@
 
             <label>Opening Percentage (%)</label>
 
-            <<input
+            <input
                 type="number"
                 id="curtainPosition"
                 min="0"
@@ -94,13 +94,65 @@
         <section class="card">
             <h2>Curtain Schedule</h2>
 
-            <label>Hour</label>
-            <input type="time">
+            <label>Register Number</label>
+            <select id="selectNumber">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+
+            <label>Hour (00-23)</label>
+            <input 
+                type="number" 
+                id="hours"
+                min="0" 
+                max="23"
+                placeholder="00">
+
+            <label>Minutes (00-59)</label>
+            <input 
+                type="number" 
+                id="minutes"
+                min="0" 
+                max="59"
+                placeholder="00">
 
             <label>Opening (%)</label>
-            <input type="number" min="0" max="100">
+            <input 
+                type="number" 
+                id="openingPercentage"
+                min="0" 
+                max="100"
+                placeholder="50">
 
-            <button class="primary-btn">Add Schedule</button>
+            <label>Days</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" id="day_mon"> Monday</label>
+                <label><input type="checkbox" id="day_tue"> Tuesday</label>
+                <label><input type="checkbox" id="day_wed"> Wednesday</label>
+                <label><input type="checkbox" id="day_thu"> Thursday</label>
+                <label><input type="checkbox" id="day_fri"> Friday</label>
+                <label><input type="checkbox" id="day_sat"> Saturday</label>
+                <label><input type="checkbox" id="day_sun"> Sunday</label>
+            </div>
+
+            <button 
+                id="addScheduleBtn"
+                onclick="send_register()"
+                class="primary-btn">
+                Add Schedule
+            </button>
+
+            <div id="schedule_status"></div>
+
+            <button id="eraseScheduleBtn" class="secondary-btn">
+                Erase Register
+            </button>
 
         </section>
 
@@ -123,8 +175,8 @@
 
             <h3>Station Mode</h3>
 
-            <input type="text" placeholder="SSID">
-            <input type="password" placeholder="Password">
+            <input type="text" id="connect_ssid" placeholder="SSID">
+            <input type="password" id="connect_pass" placeholder="Password">
 
             <button class="primary-btn">Connect</button>
 

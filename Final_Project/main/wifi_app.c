@@ -18,6 +18,7 @@
 
 #include "http_server.h"
 #include "rgb_led.h"
+#include "curtain.h"
 #include "tasks_common.h"
 #include "wifi_app.h"
 #include "esp_sntp.h"
@@ -63,15 +64,15 @@ bool get_state_time_was_synchronized( void ){
 }
 
 
-static void obtain_time(void)
+void obtain_time(void)
 {	
-	setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
+	setenv("TZ", "COT5", 1);
     tzset();
     ESP_LOGI(TAG, "Initializing SNTP");
     // Configurar el servidor SNTP. Aquí se utiliza "pool.ntp.org" como ejemplo. Puedes cambiarlo según tus necesidades.
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "0.co.pool.ntp.org");
-    sntp_init();
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "0.co.pool.ntp.org");
+    esp_sntp_init();
 
     // Esperar a que se sincronice el tiempo con el servidor SNTP
     time_t now = 0;
@@ -267,107 +268,106 @@ esp_err_t read_reg_data(char *str_to_save ,uint8_t register_num){
 
 }
 void update_register(int reg_to_update){
-	char register_information_read[12];
-	register_information_read[11] = 0x00;
+	char register_information_read[15];
+	register_information_read[14] = '\0';
 	char hora_min_str[3];
-	hora_min_str[2] = 0x00;
+	hora_min_str[2] = '\0';
+	char position_str[4];
+	position_str[3] = '\0';
 	char day[2];
-	day[1] = 0x00;
-	register_information_read[11] = 0x00;
+	day[1] = '\0';
 	if ( read_reg_data( &register_information_read[0], reg_to_update ) == ESP_OK ){
-		
 		strncpy(&hora_min_str[0], &register_information_read[0], 2);
 		register_readings_from_flash[reg_to_update-1].hour = atoi(hora_min_str);
 		
 		strncpy(&hora_min_str[0], &register_information_read[2], 2);
 		register_readings_from_flash[reg_to_update-1].min = atoi(hora_min_str);
 
-		strncpy(&day[0], &register_information_read[4], 1);
-		register_readings_from_flash[reg_to_update-1].monday = atoi(day);
-
-		strncpy(&day[0], &register_information_read[5], 1);
-		register_readings_from_flash[reg_to_update-1].tuesday = atoi(day);
-
-		strncpy(&day[0], &register_information_read[6], 1);
-		register_readings_from_flash[reg_to_update-1].wednesday = atoi(day);
+		strncpy(&position_str[0], &register_information_read[4], 3);
+		register_readings_from_flash[reg_to_update-1].position = atoi(position_str);
 
 		strncpy(&day[0], &register_information_read[7], 1);
-		register_readings_from_flash[reg_to_update-1].thursday = atoi(day);
+		register_readings_from_flash[reg_to_update-1].monday = atoi(day);
 
 		strncpy(&day[0], &register_information_read[8], 1);
-		register_readings_from_flash[reg_to_update-1].friday = atoi(day);
+		register_readings_from_flash[reg_to_update-1].tuesday = atoi(day);
 
 		strncpy(&day[0], &register_information_read[9], 1);
-		register_readings_from_flash[reg_to_update-1].saturday = atoi(day);
+		register_readings_from_flash[reg_to_update-1].wednesday = atoi(day);
 
 		strncpy(&day[0], &register_information_read[10], 1);
+		register_readings_from_flash[reg_to_update-1].thursday = atoi(day);
+
+		strncpy(&day[0], &register_information_read[11], 1);
+		register_readings_from_flash[reg_to_update-1].friday = atoi(day);
+
+		strncpy(&day[0], &register_information_read[12], 1);
+		register_readings_from_flash[reg_to_update-1].saturday = atoi(day);
+
+		strncpy(&day[0], &register_information_read[13], 1);
 		register_readings_from_flash[reg_to_update-1].sunday = atoi(day);
 
-		ESP_LOGI(TAG, "hora: %d, min: %d, day0: %d, day1: %d, day2: %d, day3: %d, day4: %d, day5: %d, day6: %d", register_readings_from_flash[reg_to_update-1].hour, register_readings_from_flash[reg_to_update-1].min, register_readings_from_flash[reg_to_update-1].monday ,
-		register_readings_from_flash[reg_to_update-1].tuesday , register_readings_from_flash[reg_to_update-1].wednesday , register_readings_from_flash[reg_to_update-1].thursday  , register_readings_from_flash[reg_to_update-1].friday 
-		, register_readings_from_flash[reg_to_update-1].saturday, register_readings_from_flash[reg_to_update-1].sunday);
+		ESP_LOGI(TAG, "hora: %d, min: %d, position: %d, day0: %d, day1: %d, day2: %d, day3: %d, day4: %d, day5: %d, day6: %d",
+			register_readings_from_flash[reg_to_update-1].hour, register_readings_from_flash[reg_to_update-1].min, register_readings_from_flash[reg_to_update-1].position,
+			register_readings_from_flash[reg_to_update-1].monday , register_readings_from_flash[reg_to_update-1].tuesday , register_readings_from_flash[reg_to_update-1].wednesday , register_readings_from_flash[reg_to_update-1].thursday  , register_readings_from_flash[reg_to_update-1].friday , register_readings_from_flash[reg_to_update-1].saturday, register_readings_from_flash[reg_to_update-1].sunday);
 	}
-
-	
 }
 void initialize_registers( void ){
-	
-	char register_information_read[12];
-	register_information_read[11] = 0x00;
-	char hora_min_str[3];
-	hora_min_str[2] = 0x00;
-	char day[2];
-	day[1] = 0x00;
-	
-	
-	for (int i = 0; i < NUM_REGISTERS_AV; i++){
-		if ( read_reg_data( &register_information_read[0], i+1 ) == ESP_OK ){
-			
-			strncpy(&hora_min_str[0], &register_information_read[0], 2);
-			register_readings_from_flash[i].hour = atoi(hora_min_str);
-			
-			strncpy(&hora_min_str[0], &register_information_read[2], 2);
-			register_readings_from_flash[i].min = atoi(hora_min_str);
+    char register_information_read[15];
+    register_information_read[14] = '\0';
+    char hora_min_str[3];
+    hora_min_str[2] = '\0';
+    char day[2];
+    day[1] = '\0';
+    char position_str[4];
+    position_str[3] = '\0';
 
-			strncpy(&day[0], &register_information_read[4], 1);
-			register_readings_from_flash[i].monday = atoi(day);
+    for (int i = 0; i < NUM_REGISTERS_AV; i++){
+        if ( read_reg_data( &register_information_read[0], i+1 ) == ESP_OK ){
+            strncpy(&hora_min_str[0], &register_information_read[0], 2);
+            register_readings_from_flash[i].hour = atoi(hora_min_str);
 
-			strncpy(&day[0], &register_information_read[5], 1);
-			register_readings_from_flash[i].tuesday = atoi(day);
+            strncpy(&hora_min_str[0], &register_information_read[2], 2);
+            register_readings_from_flash[i].min = atoi(hora_min_str);
 
-			strncpy(&day[0], &register_information_read[6], 1);
-			register_readings_from_flash[i].wednesday = atoi(day);
+            strncpy(position_str, &register_information_read[4], 3);
+            register_readings_from_flash[i].position = atoi(position_str);
 
-			strncpy(&day[0], &register_information_read[7], 1);
-			register_readings_from_flash[i].thursday = atoi(day);
+            strncpy(&day[0], &register_information_read[7], 1);
+            register_readings_from_flash[i].monday = atoi(day);
 
-			strncpy(&day[0], &register_information_read[8], 1);
-			register_readings_from_flash[i].friday = atoi(day);
+            strncpy(&day[0], &register_information_read[8], 1);
+            register_readings_from_flash[i].tuesday = atoi(day);
 
-			strncpy(&day[0], &register_information_read[9], 1);
-			register_readings_from_flash[i].saturday = atoi(day);
+            strncpy(&day[0], &register_information_read[9], 1);
+            register_readings_from_flash[i].wednesday = atoi(day);
 
-			strncpy(&day[0], &register_information_read[10], 1);
-			register_readings_from_flash[i].sunday = atoi(day);
+            strncpy(&day[0], &register_information_read[10], 1);
+            register_readings_from_flash[i].thursday = atoi(day);
 
-			//ESP_LOGI(TAG, "hora: %d, min: %d, day0: %d, day1: %d, day2: %d, day3: %d, day4: %d, day5: %d, day6: %d", register_readings_from_flash[i].hour, register_readings_from_flash[i].min, register_readings_from_flash[i].monday ,
-			//register_readings_from_flash[i].tuesday , register_readings_from_flash[i].wednesday , register_readings_from_flash[i].thursday  , register_readings_from_flash[i].friday 
-			//, register_readings_from_flash[i].saturday, register_readings_from_flash[i].sunday);
-		}
-		else{
-			register_readings_from_flash[i].hour = 99;
-			register_readings_from_flash[i].min = 99;
-			register_readings_from_flash[i].monday = 0;
-			register_readings_from_flash[i].tuesday = 0;
-			register_readings_from_flash[i].wednesday = 0;
-			register_readings_from_flash[i].thursday = 0;
-			register_readings_from_flash[i].friday = 0;
-			register_readings_from_flash[i].sunday = 0;
-			register_readings_from_flash[i].saturday = 0;
+            strncpy(&day[0], &register_information_read[11], 1);
+            register_readings_from_flash[i].friday = atoi(day);
 
-		}
+            strncpy(&day[0], &register_information_read[12], 1);
+            register_readings_from_flash[i].saturday = atoi(day);
 
-	}
+            strncpy(&day[0], &register_information_read[13], 1);
+            register_readings_from_flash[i].sunday = atoi(day);
+        }
+        else{
+            register_readings_from_flash[i].hour = 99;
+            register_readings_from_flash[i].min = 99;
+            register_readings_from_flash[i].position = 99;
+            register_readings_from_flash[i].monday = 0;
+            register_readings_from_flash[i].tuesday = 0;
+            register_readings_from_flash[i].wednesday = 0;
+            register_readings_from_flash[i].thursday = 0;
+            register_readings_from_flash[i].friday = 0;
+            register_readings_from_flash[i].sunday = 0;
+            register_readings_from_flash[i].saturday = 0;
+        }
+
+    }
 }
 
 void load_wifi_credentials(char *ssid, char *password) {
@@ -810,8 +810,9 @@ bool compare_hour_day_structs (struct tm timeinfo, register_saved_e aux_reg ){
 
 	if( timeinfo.tm_hour == aux_reg.hour ){
 		if( timeinfo.tm_min == aux_reg.min ){
-			// we should activate the motor
-			toogle_led();
+			
+			curtain_set_position(aux_reg.position);
+			ESP_LOGI(TAG2,"Executing schedule -> %d%%",aux_reg.position);
 			vTaskDelay(40000 / portTICK_PERIOD_MS);
 			return true;
 		}
@@ -894,6 +895,25 @@ void wifi_app_start(void)
 	xTaskCreatePinnedToCore(&task_compare_hour_to_execute_action, "checking_app_task", 4096, NULL, 5, NULL, 0);
 	
 	
+}
+
+void set_time_synchronized(int hour, int minute, int wday)
+{
+    struct tm t      = {0};
+    t.tm_year        = 125;   // 2025
+    t.tm_mon         = 0;
+    t.tm_mday        = 1;
+    t.tm_hour        = hour;
+    t.tm_min         = minute;
+    t.tm_sec         = 0;
+    t.tm_wday        = wday;
+
+    struct timeval tv = {0};
+    tv.tv_sec         = mktime(&t);
+    settimeofday(&tv, NULL);
+
+    time_was_synchronized = true;
+    ESP_LOGI("wifi_app", "Hora seteada desde navegador: %02d:%02d wday=%d", hour, minute, wday);
 }
 
 

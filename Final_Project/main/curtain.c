@@ -57,3 +57,14 @@ void curtain_schedule_set( uint8_t index, uint8_t hour, uint8_t minute, int8_t p
     schedules[index].position = position;
     schedules[index].enabled = true;
 }
+
+curtain_schedule_t*
+curtain_schedule_get(uint8_t index)
+{
+    if(index >= MAX_CURTAIN_SCHEDULES)
+    {
+        return NULL;
+    }
+
+    return &schedules[index];
+}

@@ -32,7 +32,7 @@ typedef void (*wifi_connected_event_callback_t)(void);
 #define MAX_CONNECTION_RETRIES		5					// Retry number on disconnect
 
 
-#define NUM_REGISTERS_AV 			10
+#define NUM_REGISTERS_AV 			8
 // netif object for the Station and Access Point
 extern esp_netif_t* esp_netif_sta;
 extern esp_netif_t* esp_netif_ap;
@@ -66,6 +66,7 @@ typedef struct register_saved
 {
 	uint8_t hour;
 	uint8_t min;
+	uint8_t position;
 	uint8_t monday;
 	uint8_t tuesday;
 	uint8_t wednesday;
@@ -80,6 +81,7 @@ void connect_to_wifi(void);
 void initialize_registers( void );
 esp_err_t read_reg_data(char *str_to_save ,uint8_t register_num);
 void init_obtain_time( void );
+void obtain_time(void);
 bool get_state_time_was_synchronized( void );
 
 void save_reg_data(uint8_t register, char *str) ;
@@ -116,6 +118,9 @@ void wifi_app_set_callback(wifi_connected_event_callback_t cb);
  * Calls the callback function.
  */
 void wifi_app_call_callback(void);
+
+void set_time_synchronized(int hour, int minute, int wday);
+
 
 /**
  * Gets the RSSI value of the Wifi connection.

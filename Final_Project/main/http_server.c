@@ -11,6 +11,8 @@
 #include "esp_timer.h"
 #include "sys/param.h"
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "http_server.h"
 #include "tasks_common.h"
@@ -26,7 +28,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <string.h>
 #include "esp_wifi.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
@@ -43,10 +44,8 @@
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
 
-#include "esp_log.h"
 #include "mqtt_client.h"
 #include "esp_sntp.h"
-
 
 // Tag used for ESP serial console messages
 static const char TAG[] = "http_server";
@@ -148,6 +147,29 @@ static esp_err_t http_server_curtain_manual_handler(
             position);
 
         curtain_set_position(position);
+    }
+
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
+static esp_err_t http_server_curtain_schedule_handler(
+    httpd_req_t *req)
+{
+    char buffer[128] = {0};
+
+    int len =
+        httpd_req_recv(
+            req,
+            buffer,
+            sizeof(buffer)-1);
+
+    if(len > 0)
+    {
+        ESP_LOGI(TAG,
+                 "Schedule received: %s",
+                 buffer);
     }
 
     httpd_resp_send(req, NULL, 0);
@@ -422,13 +444,7 @@ static void http_server_monitor(void *parameter)
 					ESP_LOGI(TAG, "HTTP_MSG_WIFI_CONNECT_SUCCESS");
 
 					g_wifi_connect_status = HTTP_WIFI_STATUS_CONNECT_SUCCESS;
-					//mqtt_app_start(); dissable MQTT
-					break;
-
-				case HTTP_MSG_WIFI_CONNECT_FAIL:
-					ESP_LOGI(TAG, "HTTP_MSG_WIFI_CONNECT_FAIL");
-
-					g_wifi_connect_status = HTTP_WIFI_STATUS_CONNECT_FAILED;
+    				obtain_time();	
 
 					break;
 
@@ -654,155 +670,172 @@ esp_err_t http_server_OTA_status_handler(httpd_req_t *req)
 static esp_err_t http_server_register_change_handler(httpd_req_t *req)
 {
     size_t header_len;
-    char* header_value;
-    char* hour_str = NULL;
-	char* reg_str = NULL;
-    char* min_str = NULL;
+    char *header_value = NULL;
     int content_length;
+    char *data_buffer = NULL;
+    const char *hour_str = NULL;
+    const char *min_str = NULL;
+    int reg_number = 0;
+    int position = 0;
+    int day_bits[7] = {0};
 
     ESP_LOGI(TAG, "/regchange.json requested");
 
-    // Get the "Content-Length" header to determine the length of the request body
     header_len = httpd_req_get_hdr_value_len(req, "Content-Length");
     if (header_len <= 0) {
-        // Content-Length header not found or invalid
-        //httpd_resp_send_err(req, HTTP_STATUS_411_LENGTH_REQUIRED, "Content-Length header is missing or invalid");
         ESP_LOGI(TAG, "Content-Length header is missing or invalid");
         return ESP_FAIL;
     }
 
-    // Allocate memory to store the header value
-    header_value = (char*)malloc(header_len + 1);
+    header_value = malloc(header_len + 1);
+    if (header_value == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for header value");
+        return ESP_FAIL;
+    }
+
     if (httpd_req_get_hdr_value_str(req, "Content-Length", header_value, header_len + 1) != ESP_OK) {
-        // Failed to get Content-Length header value
         free(header_value);
-        //httpd_resp_send_err(req, HTTP_STATUS_BAD_REQUEST, "Failed to get Content-Length header value");
         ESP_LOGI(TAG, "Failed to get Content-Length header value");
         return ESP_FAIL;
     }
 
-    // Convert the Content-Length header value to an integer
     content_length = atoi(header_value);
     free(header_value);
 
     if (content_length <= 0) {
-        // Content length is not a valid positive integer
-        //httpd_resp_send_err(req, HTTP_STATUS_BAD_REQUEST, "Invalid Content-Length value");
         ESP_LOGI(TAG, "Invalid Content-Length value");
         return ESP_FAIL;
     }
 
-    // Allocate memory for the data buffer based on the content length
-    char* data_buffer = (char*)malloc(content_length + 1);
-
-    // Read the request body into the data buffer
-    if (httpd_req_recv(req, data_buffer, content_length) <= 0) {
-        // Handle error while receiving data
-        free(data_buffer);
-        //httpd_resp_send_err(req, HTTP_STATUS_INTERNAL_SERVER_ERROR, "Failed to receive request body");
-        ESP_LOGI(TAG, "Failed to receive request body");
+    data_buffer = malloc(content_length + 1);
+    if (data_buffer == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for request body");
         return ESP_FAIL;
     }
 
-    // Null-terminate the data buffer to treat it as a string
+    if (httpd_req_recv(req, data_buffer, content_length) <= 0) {
+        free(data_buffer);
+        ESP_LOGI(TAG, "Failed to receive request body");
+        return ESP_FAIL;
+    }
     data_buffer[content_length] = '\0';
 
-    // Parse the received JSON data
-    cJSON* root = cJSON_Parse(data_buffer);
+    cJSON *root = cJSON_Parse(data_buffer);
     free(data_buffer);
-
     if (root == NULL) {
-        // JSON parsing error
-        //httpd_resp_send_err(req, HTTP_STATUS_BAD_REQUEST, "Invalid JSON data");
         ESP_LOGI(TAG, "Invalid JSON data");
         return ESP_FAIL;
     }
 
-	cJSON* reg_number_json = cJSON_GetObjectItem(root, "selectedNumber");
-    cJSON* hour_json = cJSON_GetObjectItem(root, "hours");
-    cJSON* min_json = cJSON_GetObjectItem(root, "minutes");
-	cJSON* selectedDays_json = cJSON_GetObjectItem(root, "selectedDays");
-	
-    if (hour_json == NULL || min_json == NULL || selectedDays_json == NULL|| !cJSON_IsString(hour_json) || !cJSON_IsString(min_json) || !cJSON_IsArray(selectedDays_json)) {
+    cJSON *reg_number_json = cJSON_GetObjectItem(root, "selectedNumber");
+    cJSON *hour_json = cJSON_GetObjectItem(root, "hours");
+    cJSON *min_json = cJSON_GetObjectItem(root, "minutes");
+    cJSON *selectedDays_json = cJSON_GetObjectItem(root, "selectedDays");
+    cJSON *position_json = cJSON_GetObjectItem(root, "position");
+
+    if (reg_number_json == NULL || hour_json == NULL || min_json == NULL || selectedDays_json == NULL || position_json == NULL ||
+        !(cJSON_IsNumber(reg_number_json) || cJSON_IsString(reg_number_json)) ||
+        !cJSON_IsString(hour_json) || !cJSON_IsString(min_json) ||
+        !cJSON_IsArray(selectedDays_json) ||
+        !(cJSON_IsNumber(position_json) || cJSON_IsString(position_json)))
+    {
         cJSON_Delete(root);
-        // Missing or invalid JSON fields
-        //httpd_resp_send_err(req, HTTP_STATUS_BAD_REQUEST, "Missing or invalid JSON data fields");
         ESP_LOGI(TAG, "Missing or invalid JSON data fields");
         return ESP_FAIL;
     }
 
-    // Extract SSID and password from JSON
-	reg_str = strdup(reg_number_json->valuestring);
-    hour_str = strdup(hour_json->valuestring);
-    min_str = strdup(min_json->valuestring);
+    if (cJSON_IsNumber(reg_number_json)) {
+        reg_number = reg_number_json->valueint;
+    } else {
+        reg_number = atoi(reg_number_json->valuestring);
+    }
+    if (reg_number < 1 || reg_number > NUM_REGISTERS_AV) {
+        cJSON_Delete(root);
+        ESP_LOGI(TAG, "Invalid register number: %d", reg_number);
+        return ESP_FAIL;
+    }
 
-    
+    hour_str = hour_json->valuestring;
+    min_str = min_json->valuestring;
+    if (strlen(hour_str) != 2 || strlen(min_str) != 2) {
+        cJSON_Delete(root);
+        ESP_LOGI(TAG, "Hour and minute must be two digits");
+        return ESP_FAIL;
+    }
 
-	ESP_LOGI(TAG, "Received reg: %s", reg_str);
-    ESP_LOGI(TAG, "Received hour: %s", hour_str);
-    ESP_LOGI(TAG, "Received min: %s", min_str);
- 
-    
-	char str_to_save[12];
-	//str_to_save[11]=0x00;
-	memset(str_to_save, 0x00, 12);
-	
-	if (cJSON_IsArray(selectedDays_json)) {
-    cJSON* day_item;
+    if (cJSON_IsNumber(position_json)) {
+        position = position_json->valueint;
+    } else {
+        position = atoi(position_json->valuestring);
+    }
+    if (position < 0 || position > 100) {
+        cJSON_Delete(root);
+        ESP_LOGI(TAG, "Invalid position value: %d", position);
+        return ESP_FAIL;
+    }
 
-    // Iterate over each element in the array
-	
-	
-	//strcat(str_to_save, reg_str);
-	strcat(str_to_save, hour_str);
-	strcat(str_to_save, min_str);
+    cJSON *day_item = NULL;
     cJSON_ArrayForEach(day_item, selectedDays_json) {
-        // Check if the array element is a string
-        if (cJSON_IsString(day_item)) {
-            const char* day_str = day_item->valuestring;
-			strcat(str_to_save, day_str);
-            // Perform actions with the day_str
-            printf("Selected Day: %s\n", day_str);
+        if (cJSON_IsNumber(day_item)) {
+            int day_index = day_item->valueint;
+            if (day_index >= 0 && day_index < 7) {
+                day_bits[day_index] = 1;
+            }
+        } else if (cJSON_IsString(day_item)) {
+            const char *day_str = day_item->valuestring;
+            if (day_str[0] >= '0' && day_str[0] <= '6' && day_str[1] == '\0') {
+                day_bits[day_str[0] - '0'] = 1;
+            } else if (strcasecmp(day_str, "monday") == 0) {
+                day_bits[0] = 1;
+            } else if (strcasecmp(day_str, "tuesday") == 0) {
+                day_bits[1] = 1;
+            } else if (strcasecmp(day_str, "wednesday") == 0) {
+                day_bits[2] = 1;
+            } else if (strcasecmp(day_str, "thursday") == 0) {
+                day_bits[3] = 1;
+            } else if (strcasecmp(day_str, "friday") == 0) {
+                day_bits[4] = 1;
+            } else if (strcasecmp(day_str, "saturday") == 0) {
+                day_bits[5] = 1;
+            } else if (strcasecmp(day_str, "sunday") == 0) {
+                day_bits[6] = 1;
+            }
         }
     }
-	
-	} else {
-		printf("SelectedDays is not an array\n");
+
+    char str_to_save[15];
+    memset(str_to_save, 0, sizeof(str_to_save));
+    snprintf(str_to_save, sizeof(str_to_save), "%02d%02d%03d", atoi(hour_str), atoi(min_str), position);
+    for (int i = 0; i < 7; i++) {
+        str_to_save[7 + i] = (char)('0' + day_bits[i]);
+    }
+    str_to_save[14] = '\0';
+
+    ESP_LOGI(TAG, "Register=%d hour=%s min=%s position=%03d days=%d%d%d%d%d%d%d",
+             reg_number, hour_str, min_str, position,
+             day_bits[0], day_bits[1], day_bits[2], day_bits[3], day_bits[4], day_bits[5], day_bits[6]);
+	// Extraer hora actual del navegador
+	cJSON *curr_hour_json   = cJSON_GetObjectItem(root, "current_hour");
+	cJSON *curr_min_json    = cJSON_GetObjectItem(root, "current_minute");
+	cJSON *curr_wday_json   = cJSON_GetObjectItem(root, "current_wday");
+
+	if (curr_hour_json != NULL && curr_min_json != NULL && curr_wday_json != NULL) {
+		set_time_synchronized(
+			curr_hour_json->valueint,
+			curr_min_json->valueint,
+			curr_wday_json->valueint
+		);
 	}
-	printf("%s\n", str_to_save);
-	save_reg_data(atoi(reg_str), &str_to_save[0]);
-	update_register(atoi(reg_str));
-	// Process the selected days array
-   // cJSON* day_item;
-    //cJSON_ArrayForEach(day_item, selectedDays_json) {
-       // if (cJSON_IsString(day_item)) {
-         //   const char* day_str = day_item->valuestring;
-           // ESP_LOGI(TAG, "Selected Day: %s", day_str);
+	
+    save_reg_data(reg_number, str_to_save);
+    update_register(reg_number);
+    cJSON_Delete(root);
 
-            // Perform any additional actions based on the selected day
-            // ...
-
-            // Release memory when no longer needed
-        //}
-		
-    //}
-	//free(day_item);
-
-	//free(selectedDays_json);
-
-	// Send a success response to the client
-	// Cerrar la conexion
-	free(reg_str);
-	free(hour_str);
-    free(min_str);
-	cJSON_Delete(root);
     httpd_resp_set_hdr(req, "Connection", "close");
     httpd_resp_send(req, NULL, 0);
-	
 
     return ESP_OK;
 }
-
 
 
 
@@ -834,6 +867,10 @@ static esp_err_t http_server_register_erase_handler(httpd_req_t *req)
 
     // Allocate memory to store the header value
     header_value = (char*)malloc(header_len + 1);
+    if (header_value == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for header value");
+        return ESP_FAIL;
+    }
     if (httpd_req_get_hdr_value_str(req, "Content-Length", header_value, header_len + 1) != ESP_OK) {
         // Failed to get Content-Length header value
         free(header_value);
@@ -855,6 +892,10 @@ static esp_err_t http_server_register_erase_handler(httpd_req_t *req)
 
     // Allocate memory for the data buffer based on the content length
     char* data_buffer = (char*)malloc(content_length + 1);
+    if (data_buffer == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for request body");
+        return ESP_FAIL;
+    }
 
     // Read the request body into the data buffer
     if (httpd_req_recv(req, data_buffer, content_length) <= 0) {
@@ -977,6 +1018,10 @@ static esp_err_t http_server_wifi_connect_json_handler(httpd_req_t *req)
 
     // Allocate memory to store the header value
     header_value = (char*)malloc(header_len + 1);
+    if (header_value == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for header value");
+        return ESP_FAIL;
+    }
     if (httpd_req_get_hdr_value_str(req, "Content-Length", header_value, header_len + 1) != ESP_OK) {
         // Failed to get Content-Length header value
         free(header_value);
@@ -998,6 +1043,10 @@ static esp_err_t http_server_wifi_connect_json_handler(httpd_req_t *req)
 
     // Allocate memory for the data buffer based on the content length
     char* data_buffer = (char*)malloc(content_length + 1);
+    if (data_buffer == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for request body");
+        return ESP_FAIL;
+    }
 
     // Read the request body into the data buffer
     if (httpd_req_recv(req, data_buffer, content_length) <= 0) {
@@ -1198,6 +1247,19 @@ static httpd_handle_t http_server_configure(void)
 		httpd_register_uri_handler(
 			http_server_handle,
 			&curtain_manual
+		);
+
+		httpd_uri_t curtain_schedule =
+		{
+			.uri = "/curtainSchedule.json",
+			.method = HTTP_POST,
+			.handler = http_server_curtain_schedule_handler,
+			.user_ctx = NULL
+		};
+
+		httpd_register_uri_handler(
+			http_server_handle,
+			&curtain_schedule
 		);
 
 		// register OTAupdate handler

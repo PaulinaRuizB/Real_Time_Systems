@@ -40,18 +40,6 @@ void app_main(void)
 
 	curtain_init();
 
-/* curtain_set_position(0);
-
-	vTaskDelay(pdMS_TO_TICKS(3000));
-
-	curtain_set_position(50);
-
-	vTaskDelay(pdMS_TO_TICKS(3000));
-
-	curtain_set_position(100);
-
-	*/
-
 	wifi_app_start();
 }
 

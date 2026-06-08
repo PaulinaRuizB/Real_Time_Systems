@@ -14,6 +14,15 @@ $(document).ready(function(){
 	startDHTSensorInterval();
 	$("#connect_wifi").on("click", function(){
 		checkCredentials();
+	});
+    $("#curtainBtn").on("click", function(){
+        testCurtain();
+    });
+    $("#addScheduleBtn").on("click", function(){
+        send_register();
+    });
+    $("#eraseScheduleBtn").on("click", function(){
+        erase_register();
 	}); 
 });   
 
@@ -313,59 +322,93 @@ function showPassword()
 
 function send_register()
 {
-    // Assuming you have selectedNumber, hours, minutes variables populated from your form
+    // Get form values
     selectedNumber = $("#selectNumber").val();
     hours = $("#hours").val();
     minutes = $("#minutes").val();
+    position = $("#openingPercentage").val();
     
-    // Create an array for selected days
+    // Validate inputs
+    if (!hours || !minutes || !position) {
+        alert("Please fill in all fields");
+        return;
+    }
+    
+    // Format hours and minutes to 2 digits
+    hours = String(hours).padStart(2, '0');
+    minutes = String(minutes).padStart(2, '0');
+    
+    // Create an array for selected days (in order: monday, tuesday, wednesday, thursday, friday, saturday, sunday)
     var selectedDays = [];
     if ($("#day_mon").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_tue").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_wed").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_thu").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_fri").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_sat").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
     if ($("#day_sun").prop("checked")) selectedDays.push("1");
-	else selectedDays.push("0");
+    else selectedDays.push("0");
 
     // Create an object to hold the data to be sent in the request body
     var requestData = {
         'selectedNumber': selectedNumber,
         'hours': hours,
         'minutes': minutes,
+        'position': parseInt(position),
         'selectedDays': selectedDays,
         'timestamp': Date.now()
     };
 
     // Serialize the data object to JSON
     var requestDataJSON = JSON.stringify(requestData);
+    
+    console.log("Sending schedule:", requestDataJSON);
+	var statusEl = document.getElementById("schedule_status");
+	statusEl.innerHTML = "Saving…";
 
 	$.ajax({
 		url: '/regchange.json',
-		dataType: 'json',
+		dataType: 'text',
 		method: 'POST',
 		cache: false,
 		data: requestDataJSON, // Send the JSON data in the request body
 		contentType: 'application/json', // Set the content type to JSON
 		success: function(response) {
 		  // Handle the success response from the server
-		  console.log(response);
+		  statusEl.innerHTML = "<span style='color:green'>Register " + selectedNumber + " saved!</span>";
+		  console.log("Schedule saved successfully");
+		  alert("Schedule saved!");
 		},
 		error: function(xhr, status, error) {
 		  // Handle errors
-		  console.error(xhr.responseText);
+		  statusEl.innerHTML = "<span style='color:red'>Error: could not save register.</span>"; 
+		  console.error("Error saving schedule:", xhr.responseText);
+		  alert("Error: " + error);
 		}
 	  });
 
+	  var now = new Date();
+
+	var requestData = {
+		'selectedNumber': selectedNumber,
+		'hours': hours,
+		'minutes': minutes,
+		'position': parseInt(position),
+		'selectedDays': selectedDays,
+		'current_hour': now.getHours(),        // AGREGAR
+		'current_minute': now.getMinutes(),    // AGREGAR
+		'current_wday': now.getDay(),          // AGREGAR (0=domingo, 1=lunes ... 6=sábado)
+		'timestamp': Date.now()
+	};
+
     // Print the resulting JSON to the console (for testing)
-    //console.log(requestDataJSON);
+    console.log(requestDataJSON);
 }
 
 /**
@@ -503,29 +546,3 @@ function testCurtain()
         })
     });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-    
-
-

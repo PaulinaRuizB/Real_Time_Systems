@@ -197,3 +197,21 @@ hr {
         grid-template-columns: 1fr;
     }
 }
+
+.secondary-btn {
+    background-color: transparent;
+    color: #c0392b;
+    border: 2px solid #c0392b;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.secondary-btn:hover {
+    background-color: #c0392b;
+    color: white;
+}
+#schedule_status {
+    min-height: 1.4em;
+    font-size: 0.9rem;
+}
