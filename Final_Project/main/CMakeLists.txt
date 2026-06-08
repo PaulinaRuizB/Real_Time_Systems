@@ -1,4 +1,4 @@
-idf_component_register(SRCS "servo.c" "main.c" "rgb_led.c" "wifi_app.c" "http_server.c" 
+idf_component_register(SRCS "servo.c" "main.c" "rgb_led.c" "wifi_app.c" "http_server.c" "curtain.c" 
                     PRIV_REQUIRES esp_wifi nvs_flash driver esp_http_server esp_timer app_update cjson mqtt esp_driver_gpio esp_driver_ledc 
 
                     INCLUDE_DIRS "."

@@ -46,7 +46,8 @@ bool time_was_synchronized;
 
 extern uint8_t s_led_state;
 
-
+// Forward declaration of static function
+static void wifi_app_connect_sta(void);
 
 
 
@@ -657,14 +658,20 @@ static void wifi_app_task(void *pvParameters)
 	// Initialize the event handler
 	wifi_app_event_handler_init();
 
+	ESP_LOGI(TAG, "Initializing wifi");
+
 	// Initialize the TCP/IP stack and WiFi config
 	wifi_app_default_wifi_init();
+
+	ESP_LOGI(TAG, "Starting wifi");
 
 	// SoftAP config
 	wifi_app_soft_ap_config();
 
 	// Start WiFi
 	ESP_ERROR_CHECK(esp_wifi_start());
+
+	ESP_LOGI(TAG, "WiFi started");
 
 	// Send first event message
 	wifi_app_send_message(WIFI_APP_MSG_START_HTTP_SERVER);
@@ -884,7 +891,7 @@ void wifi_app_start(void)
 	xSemaphoreGive(mySemaphore);
 	// Start the WiFi application task
 	xTaskCreatePinnedToCore(&wifi_app_task, "wifi_app_task", WIFI_APP_TASK_STACK_SIZE, NULL, WIFI_APP_TASK_PRIORITY, NULL, WIFI_APP_TASK_CORE_ID);
-	xTaskCreatePinnedToCore(&task_compare_hour_to_execute_action, "checking_app_task", 4096, NULL, 5, NULL, 1);
+	xTaskCreatePinnedToCore(&task_compare_hour_to_execute_action, "checking_app_task", 4096, NULL, 5, NULL, 0);
 	
 	
 }

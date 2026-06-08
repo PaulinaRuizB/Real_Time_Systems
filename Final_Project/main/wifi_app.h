@@ -76,7 +76,6 @@ typedef struct register_saved
 
 } register_saved_e;
 
-static void obtain_time( void );
 void connect_to_wifi(void);
 void initialize_registers( void );
 esp_err_t read_reg_data(char *str_to_save ,uint8_t register_num);
@@ -86,7 +85,6 @@ bool get_state_time_was_synchronized( void );
 void save_reg_data(uint8_t register, char *str) ;
 void save_wifi_credentials(const char *ssid, const char *password);
 void load_wifi_credentials(char *ssid, char *password);
-static void wifi_app_connect_sta(void);
 void check_sta_connection_state( void *pvParameters );
 void task_compare_hour_to_execute_action( void *pvParameters );
 void update_register(int reg_to_update);

@@ -7,6 +7,8 @@
 #include "wifi_app.h"
 #include "driver/gpio.h"
 #include "servo.h"
+#include "curtain.h"
+#include "rgb_led.h"
 
 
 #define BLINK_GPIO				2
@@ -35,18 +37,20 @@ void app_main(void)
 	// Start Wifi
 	init_obtain_time();
 	configure_led();
-	servo_init();
-	servo_set_angle(0);
 
-	//prueba de movimiento del servo
+	curtain_init();
 
-	vTaskDelay(pdMS_TO_TICKS(3000));
-
-	servo_set_angle(90);
+/* curtain_set_position(0);
 
 	vTaskDelay(pdMS_TO_TICKS(3000));
 
-	servo_set_angle(180);
+	curtain_set_position(50);
+
+	vTaskDelay(pdMS_TO_TICKS(3000));
+
+	curtain_set_position(100);
+
+	*/
 
 	wifi_app_start();
 }

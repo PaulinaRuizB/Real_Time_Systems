@@ -74,17 +74,20 @@
         <section class="card">
             <h2>Curtain Control</h2>
 
-            <label>Mode</label>
-
-            <div class="button-group">
-                <button>Manual</button>
-                <button>Schedule</button>
-            </div>
-
             <label>Opening Percentage (%)</label>
-            <input type="range" min="0" max="100" value="70">
 
-            <button class="primary-btn">Set Position</button>
+            <<input
+                type="number"
+                id="curtainPosition"
+                min="0"
+                max="100"
+                value="50">
+
+            <button
+                id="curtainBtn"
+                class="primary-btn">
+                Set Position
+            </button>
         </section>
 
         <!-- SCHEDULE -->
@@ -99,10 +102,6 @@
 
             <button class="primary-btn">Add Schedule</button>
 
-            <div class="schedule-list">
-                <p>08:00 → 100%</p>
-                <p>18:00 → 0%</p>
-            </div>
         </section>
 
         <!-- RGB -->
@@ -149,6 +148,9 @@
         </section>
 
     </main>
+
+    <script src="jquery-3.3.1.min.js"></script>
+    <script src="app.js"></script>
 
 </body>
 

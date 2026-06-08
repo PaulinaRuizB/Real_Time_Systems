@@ -17,6 +17,9 @@
 #include "wifi_app.h"
 #include "cJSON.h"
 #include "driver/gpio.h"
+#include "curtain.h"
+#include "rgb_led.h"
+#include "search.h"
 
 
 
@@ -118,6 +121,40 @@ static esp_err_t http_server_get_dht_sensor_readings_json_handler(httpd_req_t *r
 	return ESP_OK;
 }
 
+static esp_err_t http_server_curtain_manual_handler(
+    httpd_req_t *req)
+{
+    char buffer[100] = {0};
+
+    int len = httpd_req_recv(
+        req,
+        buffer,
+        sizeof(buffer)-1);
+
+    if(len > 0)
+    {
+        ESP_LOGI(TAG, "Received: %s", buffer);
+
+        int position = 0;
+
+        sscanf(
+            buffer,
+            "{\"position\":%d}",
+            &position);
+
+        ESP_LOGI(
+            TAG,
+            "Position=%d",
+            position);
+
+        curtain_set_position(position);
+    }
+
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
 static esp_err_t http_server_toogle_led_handler(httpd_req_t *req)
 {
 	ESP_LOGI(TAG, "/toogle_led.json requested");
@@ -135,7 +172,6 @@ static esp_err_t http_server_read_register_handler(httpd_req_t *req)
 {
 	ESP_LOGI(TAG, "/readreg.json requested");
 
-	char read_regs[255];
 	char register_information_read_1[12];
 	register_information_read_1[11] = 0x00;
 	if (read_reg_data( &register_information_read_1[0], 1 ) != ESP_OK ){
@@ -622,7 +658,6 @@ static esp_err_t http_server_register_change_handler(httpd_req_t *req)
     char* hour_str = NULL;
 	char* reg_str = NULL;
     char* min_str = NULL;
-	char* days = NULL;
     int content_length;
 
     ESP_LOGI(TAG, "/regchange.json requested");
@@ -783,10 +818,7 @@ static esp_err_t http_server_register_erase_handler(httpd_req_t *req)
 {
     size_t header_len;
     char* header_value;
-    char* hour_str = NULL;
 	char* reg_str = NULL;
-    char* min_str = NULL;
-	char* days = NULL;
     int content_length;
 
     ESP_LOGI(TAG, "/regerase.json requested");
@@ -1155,6 +1187,18 @@ static httpd_handle_t http_server_configure(void)
 		};
 		httpd_register_uri_handler(http_server_handle, &wifi_connect_json);
 		
+		//register curtain_manual.json handler
+		httpd_uri_t curtain_manual = {
+			.uri = "/curtainManual.json",
+			.method = HTTP_POST,
+			.handler = http_server_curtain_manual_handler,
+			.user_ctx = NULL
+		};
+
+		httpd_register_uri_handler(
+			http_server_handle,
+			&curtain_manual
+		);
 
 		// register OTAupdate handler
 		httpd_uri_t OTA_update = {

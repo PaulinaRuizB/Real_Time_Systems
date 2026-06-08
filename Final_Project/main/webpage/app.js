@@ -1,6 +1,7 @@
 /**
  * Add gobals here
  */
+console.log("APP.JS LOADED");
 var seconds 	= null;
 var otaTimerVar =  null;
 var wifiConnectInterval = null;
@@ -447,6 +448,62 @@ function brigthness_up()
 	});
 
 }
+
+//configuración de eventos para el control de la cortina
+//parte manual con input de porcentaje y botón de enviado
+document.addEventListener("DOMContentLoaded", () =>
+{
+    const curtainBtn =
+        document.getElementById("curtainBtn");
+
+    curtainBtn.addEventListener(
+        "click",
+        testCurtain
+    );
+});
+
+function testCurtain()
+{
+    let position =
+        Number(
+            document.getElementById(
+                "curtainPosition"
+            ).value
+        );
+
+    if(isNaN(position))
+    {
+        alert("Invalid percentage");
+        return;
+    }
+
+    if(position < 0)
+    {
+        position = 0;
+    }
+
+    if(position > 100)
+    {
+        position = 100;
+    }
+
+    fetch("/curtainManual.json",
+    {
+        method: "POST",
+
+        headers:
+        {
+            "Content-Type":
+            "application/json"
+        },
+
+        body: JSON.stringify(
+        {
+            position: position
+        })
+    });
+}
+
 
 
 
