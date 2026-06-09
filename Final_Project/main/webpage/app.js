@@ -513,3 +513,42 @@ function testCurtain()
         })
     });
 }
+
+//función para enviar las credenciales del AP
+function updateAP()
+{
+    var ap_ssid = $("#ap_ssid").val();
+    var ap_pass = $("#ap_pass").val();
+
+    if (ap_ssid === "") {
+        alert("AP name cannot be empty");
+        return;
+    }
+    if (ap_pass.length < 8) {
+        alert("AP password must be at least 8 characters");
+        return;
+    }
+
+    var requestData = {
+        'ap_ssid': ap_ssid,
+        'ap_pass': ap_pass,
+        'timestamp': Date.now()
+    };
+
+    $.ajax({
+        url: '/apChange.json',
+        dataType: 'text',
+        method: 'POST',
+        cache: false,
+        data: JSON.stringify(requestData),
+        contentType: 'application/json',
+        success: function(response) {
+            $("#ap_status").html("<span style='color:green'>AP updated! Reconnect to the new network.</span>");
+        },
+        error: function(xhr, status, error) {
+            $("#ap_status").html("<span style='color:red'>Error updating AP.</span>");
+        }
+    });
+}
+
+

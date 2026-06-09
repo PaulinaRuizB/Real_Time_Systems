@@ -83,6 +83,9 @@ void check_sta_connection_state( void *pvParameters );
 void task_compare_hour_to_execute_action( void *pvParameters );
 void update_register(int reg_to_update);
 
+void save_ap_credentials(const char *ssid, const char *password);
+void load_ap_credentials(char *ssid, char *password);
+
 /**
  * Sends a message to the queue
  * @param msgID message ID from the wifi_app_message_e enum.

@@ -178,10 +178,12 @@
 
             <h3>Access Point</h3>
 
-            <input type="text" placeholder="AP Name">
-            <input type="password" placeholder="AP Password">
+            <input type="text" id="ap_ssid" placeholder="AP Name">
+            <input type="password" id="ap_pass"placeholder="AP Password">
+            <div id="ap_status"></div>
 
-            <button class="primary-btn">Update AP</button>
+            <button onclick="updateAP()" class="primary-btn">Update AP</button>
+            
         </section>
 
         <!-- OTA -->

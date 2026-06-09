@@ -120,6 +120,65 @@ static esp_err_t http_server_get_dht_sensor_readings_json_handler(httpd_req_t *r
 	return ESP_OK;
 }
 
+static esp_err_t http_server_ap_change_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "/apChange.json requested");
+
+    char buf[200];
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (ret <= 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+        return ESP_FAIL;
+    }
+    buf[ret] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    if (root == NULL) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *ap_ssid_json = cJSON_GetObjectItem(root, "ap_ssid");
+    cJSON *ap_pass_json = cJSON_GetObjectItem(root, "ap_pass");
+
+    if (ap_ssid_json == NULL || ap_pass_json == NULL ||
+        !cJSON_IsString(ap_ssid_json) || !cJSON_IsString(ap_pass_json)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing fields");
+        return ESP_FAIL;
+    }
+
+    const char *new_ssid = ap_ssid_json->valuestring;
+    const char *new_pass = ap_pass_json->valuestring;
+
+    if (strlen(new_ssid) == 0 || strlen(new_pass) < 8) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, 
+                            "SSID empty or password too short (min 8 chars)");
+        return ESP_FAIL;
+    }
+
+    save_ap_credentials(new_ssid, new_pass);
+
+    // Aplicar el nuevo AP inmediatamente sin reiniciar
+    wifi_config_t ap_config = {0};
+    strncpy((char *)ap_config.ap.ssid,     new_ssid, 32);
+    strncpy((char *)ap_config.ap.password, new_pass, 64);
+    ap_config.ap.ssid_len        = strlen(new_ssid);
+    ap_config.ap.channel         = WIFI_AP_CHANNEL;
+    ap_config.ap.authmode        = WIFI_AUTH_WPA2_PSK;
+    ap_config.ap.max_connection  = WIFI_AP_MAX_CONNECTIONS;
+    ap_config.ap.beacon_interval = WIFI_AP_BEACON_INTERVAL;
+
+    esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+
+    cJSON_Delete(root);
+
+    httpd_resp_set_hdr(req, "Connection", "close");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 static esp_err_t http_server_curtain_manual_handler(
     httpd_req_t *req)
 {
@@ -1194,6 +1253,15 @@ static httpd_handle_t http_server_configure(void)
 		};
 		httpd_register_uri_handler(http_server_handle, &wifi_connect_json);
 		
+		//registrar ap_change.json handler 
+		httpd_uri_t ap_change = {
+			.uri     = "/apChange.json",
+			.method  = HTTP_POST,
+			.handler = http_server_ap_change_handler,
+			.user_ctx = NULL
+		};
+		httpd_register_uri_handler(http_server_handle, &ap_change);
+			
 		//register curtain_manual.json handler
 		httpd_uri_t curtain_manual = {
 			.uri = "/curtainManual.json",

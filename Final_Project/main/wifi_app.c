@@ -366,6 +366,37 @@ void load_wifi_credentials(char *ssid, char *password) {
 
     nvs_close(nvs_handle);
 }
+
+//Cambiar credenciales del Access Point
+void save_ap_credentials(const char *ssid, const char *password)
+{
+    nvs_handle_t nvs_handle;
+    if (nvs_open("ap_creds", NVS_READWRITE, &nvs_handle) == ESP_OK) {
+        nvs_set_str(nvs_handle, "ap_ssid", ssid);
+        nvs_set_str(nvs_handle, "ap_pass", password);
+        nvs_commit(nvs_handle);
+        nvs_close(nvs_handle);
+        ESP_LOGI(TAG, "AP credentials saved: SSID=%s", ssid);
+    }
+}
+
+void load_ap_credentials(char *ssid, char *password)
+{
+    nvs_handle_t nvs_handle;
+    size_t ssid_len = 32, pass_len = 64;
+
+    if (nvs_open("ap_creds", NVS_READONLY, &nvs_handle) == ESP_OK) {
+        nvs_get_str(nvs_handle, "ap_ssid", ssid, &ssid_len);
+        nvs_get_str(nvs_handle, "ap_pass", password, &pass_len);
+        nvs_close(nvs_handle);
+        ESP_LOGI(TAG, "AP credentials loaded: SSID=%s", ssid);
+    } else {
+        // Si no hay credenciales guardadas, usar las por defecto
+        strncpy(ssid,     WIFI_AP_SSID,     32);
+        strncpy(password, WIFI_AP_PASSWORD,  64);
+    }
+}
+
 bool nvs_credentials_exist() {
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READONLY, &nvs_handle);
@@ -562,19 +593,24 @@ static void wifi_app_default_wifi_init(void)
 static void wifi_app_soft_ap_config(void)
 {
 	// SoftAP - WiFi access point configuration
-	wifi_config_t ap_config =
-	{
-		.ap = {
-				.ssid = WIFI_AP_SSID,
-				.ssid_len = strlen(WIFI_AP_SSID),
-				.password = WIFI_AP_PASSWORD,
-				.channel = WIFI_AP_CHANNEL,
-				.ssid_hidden = WIFI_AP_SSID_HIDDEN,
-				.authmode = WIFI_AUTH_WPA2_PSK,
-				.max_connection = WIFI_AP_MAX_CONNECTIONS,
-				.beacon_interval = WIFI_AP_BEACON_INTERVAL,
-		},
-	};
+	char ap_ssid[32]     = {0};
+    char ap_password[64] = {0};
+    load_ap_credentials(ap_ssid, ap_password);
+
+    wifi_config_t ap_config =
+    {
+        .ap = {
+            .ssid_len        = strlen(ap_ssid),
+            .channel         = WIFI_AP_CHANNEL,
+            .ssid_hidden     = WIFI_AP_SSID_HIDDEN,
+            .authmode        = WIFI_AUTH_WPA2_PSK,
+            .max_connection  = WIFI_AP_MAX_CONNECTIONS,
+            .beacon_interval = WIFI_AP_BEACON_INTERVAL,
+        },
+    };
+    // Copiar SSID y password dinámicamente
+    strncpy((char *)ap_config.ap.ssid,     ap_ssid,     32);
+    strncpy((char *)ap_config.ap.password, ap_password, 64);
 
 	// Configure DHCP for the AP
 	esp_netif_ip_info_t ap_ip_info;
@@ -767,7 +803,7 @@ void task_compare_hour_to_execute_action( void *pvParameters ) {
 
 		}
 
-		vTaskDelay(30000 / portTICK_PERIOD_MS);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
 	}
 
 
