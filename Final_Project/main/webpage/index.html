@@ -130,17 +130,6 @@
                 max="100"
                 placeholder="50">
 
-            <label>Days</label>
-            <div class="checkbox-group">
-                <label><input type="checkbox" id="day_mon"> Monday</label>
-                <label><input type="checkbox" id="day_tue"> Tuesday</label>
-                <label><input type="checkbox" id="day_wed"> Wednesday</label>
-                <label><input type="checkbox" id="day_thu"> Thursday</label>
-                <label><input type="checkbox" id="day_fri"> Friday</label>
-                <label><input type="checkbox" id="day_sat"> Saturday</label>
-                <label><input type="checkbox" id="day_sun"> Sunday</label>
-            </div>
-
             <button 
                 id="addScheduleBtn"
                 onclick="send_register()"
@@ -177,8 +166,13 @@
 
             <input type="text" id="connect_ssid" placeholder="SSID">
             <input type="password" id="connect_pass" placeholder="Password">
-
-            <button class="primary-btn">Connect</button>
+            
+            <div id="wifi_connect_credentials_errors"></div>
+            <div id="wifi_connect_status"></div>
+            
+            <button id="connect_wifi" class="primary-btn">
+                Connect
+            </button>
 
             <hr>
 

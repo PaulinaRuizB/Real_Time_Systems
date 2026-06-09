@@ -67,14 +67,6 @@ typedef struct register_saved
 	uint8_t hour;
 	uint8_t min;
 	uint8_t position;
-	uint8_t monday;
-	uint8_t tuesday;
-	uint8_t wednesday;
-	uint8_t thursday;
-	uint8_t friday;
-	uint8_t sunday;
-	uint8_t saturday;
-
 } register_saved_e;
 
 void connect_to_wifi(void);

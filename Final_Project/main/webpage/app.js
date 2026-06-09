@@ -9,7 +9,8 @@ var wifiConnectInterval = null;
 /**
  * Initialize functions here.
  */
-$(document).ready(function(){
+
+/*$(document).ready(function(){
 	//getUpdateStatus();
 	startDHTSensorInterval();
 	$("#connect_wifi").on("click", function(){
@@ -24,7 +25,8 @@ $(document).ready(function(){
     $("#eraseScheduleBtn").on("click", function(){
         erase_register();
 	}); 
-});   
+}); 
+*/  
 
 /**
  * Gets file name and size for display on the web page.
@@ -337,23 +339,9 @@ function send_register()
     // Format hours and minutes to 2 digits
     hours = String(hours).padStart(2, '0');
     minutes = String(minutes).padStart(2, '0');
-    
-    // Create an array for selected days (in order: monday, tuesday, wednesday, thursday, friday, saturday, sunday)
-    var selectedDays = [];
-    if ($("#day_mon").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_tue").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_wed").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_thu").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_fri").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_sat").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
-    if ($("#day_sun").prop("checked")) selectedDays.push("1");
-    else selectedDays.push("0");
+
+    // Hora actual del navegador para sincronizar el reloj del ESP32
+    var now = new Date();
 
     // Create an object to hold the data to be sent in the request body
     var requestData = {
@@ -361,7 +349,9 @@ function send_register()
         'hours': hours,
         'minutes': minutes,
         'position': parseInt(position),
-        'selectedDays': selectedDays,
+        'current_hour':   now.getHours(),
+        'current_minute': now.getMinutes(),
+        'current_wday':   now.getDay(),
         'timestamp': Date.now()
     };
 
@@ -369,51 +359,28 @@ function send_register()
     var requestDataJSON = JSON.stringify(requestData);
     
     console.log("Sending schedule:", requestDataJSON);
-	var statusEl = document.getElementById("schedule_status");
-	statusEl.innerHTML = "Saving…";
+    var statusEl = document.getElementById("schedule_status");
+    statusEl.innerHTML = "Saving…";
 
-	$.ajax({
-		url: '/regchange.json',
-		dataType: 'text',
-		method: 'POST',
-		cache: false,
-		data: requestDataJSON, // Send the JSON data in the request body
-		contentType: 'application/json', // Set the content type to JSON
-		success: function(response) {
-		  // Handle the success response from the server
-		  statusEl.innerHTML = "<span style='color:green'>Register " + selectedNumber + " saved!</span>";
-		  console.log("Schedule saved successfully");
-		  alert("Schedule saved!");
-		},
-		error: function(xhr, status, error) {
-		  // Handle errors
-		  statusEl.innerHTML = "<span style='color:red'>Error: could not save register.</span>"; 
-		  console.error("Error saving schedule:", xhr.responseText);
-		  alert("Error: " + error);
-		}
-	  });
-
-	  var now = new Date();
-
-	var requestData = {
-		'selectedNumber': selectedNumber,
-		'hours': hours,
-		'minutes': minutes,
-		'position': parseInt(position),
-		'selectedDays': selectedDays,
-		'current_hour': now.getHours(),        // AGREGAR
-		'current_minute': now.getMinutes(),    // AGREGAR
-		'current_wday': now.getDay(),          // AGREGAR (0=domingo, 1=lunes ... 6=sábado)
-		'timestamp': Date.now()
-	};
-
-    // Print the resulting JSON to the console (for testing)
-    console.log(requestDataJSON);
+    $.ajax({
+        url: '/regchange.json',
+        dataType: 'text',
+        method: 'POST',
+        cache: false,
+        data: requestDataJSON,
+        contentType: 'application/json',
+        success: function(response) {
+            statusEl.innerHTML = "<span style='color:green'>Register " + selectedNumber + " saved!</span>";
+            console.log("Schedule saved successfully");
+        },
+        error: function(xhr, status, error) {
+            statusEl.innerHTML = "<span style='color:red'>Error: could not save register.</span>"; 
+            console.error("Error saving schedule:", xhr.responseText);
+            alert("Error: " + error);
+        }
+    });
 }
 
-/**
- * toogle led function.
- */
 function read_reg()
 {
 

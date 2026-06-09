@@ -154,22 +154,16 @@ static esp_err_t http_server_curtain_manual_handler(
     return ESP_OK;
 }
 
-static esp_err_t http_server_curtain_schedule_handler(
-    httpd_req_t *req)
+static esp_err_t http_server_curtain_schedule_handler(httpd_req_t *req)
 {
     char buffer[128] = {0};
 
     int len =
-        httpd_req_recv(
-            req,
-            buffer,
-            sizeof(buffer)-1);
+        httpd_req_recv(req, buffer,sizeof(buffer)-1);
 
     if(len > 0)
     {
-        ESP_LOGI(TAG,
-                 "Schedule received: %s",
-                 buffer);
+        ESP_LOGI(TAG, "Schedule received: %s", buffer);
     }
 
     httpd_resp_send(req, NULL, 0);
@@ -677,7 +671,6 @@ static esp_err_t http_server_register_change_handler(httpd_req_t *req)
     const char *min_str = NULL;
     int reg_number = 0;
     int position = 0;
-    int day_bits[7] = {0};
 
     ESP_LOGI(TAG, "/regchange.json requested");
 
@@ -730,13 +723,11 @@ static esp_err_t http_server_register_change_handler(httpd_req_t *req)
     cJSON *reg_number_json = cJSON_GetObjectItem(root, "selectedNumber");
     cJSON *hour_json = cJSON_GetObjectItem(root, "hours");
     cJSON *min_json = cJSON_GetObjectItem(root, "minutes");
-    cJSON *selectedDays_json = cJSON_GetObjectItem(root, "selectedDays");
     cJSON *position_json = cJSON_GetObjectItem(root, "position");
 
-    if (reg_number_json == NULL || hour_json == NULL || min_json == NULL || selectedDays_json == NULL || position_json == NULL ||
+    if (reg_number_json == NULL || hour_json == NULL || min_json == NULL || position_json == NULL ||
         !(cJSON_IsNumber(reg_number_json) || cJSON_IsString(reg_number_json)) ||
         !cJSON_IsString(hour_json) || !cJSON_IsString(min_json) ||
-        !cJSON_IsArray(selectedDays_json) ||
         !(cJSON_IsNumber(position_json) || cJSON_IsString(position_json)))
     {
         cJSON_Delete(root);
@@ -774,46 +765,13 @@ static esp_err_t http_server_register_change_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *day_item = NULL;
-    cJSON_ArrayForEach(day_item, selectedDays_json) {
-        if (cJSON_IsNumber(day_item)) {
-            int day_index = day_item->valueint;
-            if (day_index >= 0 && day_index < 7) {
-                day_bits[day_index] = 1;
-            }
-        } else if (cJSON_IsString(day_item)) {
-            const char *day_str = day_item->valuestring;
-            if (day_str[0] >= '0' && day_str[0] <= '6' && day_str[1] == '\0') {
-                day_bits[day_str[0] - '0'] = 1;
-            } else if (strcasecmp(day_str, "monday") == 0) {
-                day_bits[0] = 1;
-            } else if (strcasecmp(day_str, "tuesday") == 0) {
-                day_bits[1] = 1;
-            } else if (strcasecmp(day_str, "wednesday") == 0) {
-                day_bits[2] = 1;
-            } else if (strcasecmp(day_str, "thursday") == 0) {
-                day_bits[3] = 1;
-            } else if (strcasecmp(day_str, "friday") == 0) {
-                day_bits[4] = 1;
-            } else if (strcasecmp(day_str, "saturday") == 0) {
-                day_bits[5] = 1;
-            } else if (strcasecmp(day_str, "sunday") == 0) {
-                day_bits[6] = 1;
-            }
-        }
-    }
+	
+	char str_to_save[8];
+	memset(str_to_save, 0, sizeof(str_to_save));
+	snprintf(str_to_save, sizeof(str_to_save), "%02d%02d%03d", atoi(hour_str), atoi(min_str), position);
 
-    char str_to_save[15];
-    memset(str_to_save, 0, sizeof(str_to_save));
-    snprintf(str_to_save, sizeof(str_to_save), "%02d%02d%03d", atoi(hour_str), atoi(min_str), position);
-    for (int i = 0; i < 7; i++) {
-        str_to_save[7 + i] = (char)('0' + day_bits[i]);
-    }
-    str_to_save[14] = '\0';
-
-    ESP_LOGI(TAG, "Register=%d hour=%s min=%s position=%03d days=%d%d%d%d%d%d%d",
-             reg_number, hour_str, min_str, position,
-             day_bits[0], day_bits[1], day_bits[2], day_bits[3], day_bits[4], day_bits[5], day_bits[6]);
+	ESP_LOGI(TAG, "Register=%d hour=%s min=%s position=%03d",
+			reg_number, hour_str, min_str, position);
 	// Extraer hora actual del navegador
 	cJSON *curr_hour_json   = cJSON_GetObjectItem(root, "current_hour");
 	cJSON *curr_min_json    = cJSON_GetObjectItem(root, "current_minute");
