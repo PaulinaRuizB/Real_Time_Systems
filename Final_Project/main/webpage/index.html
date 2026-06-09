@@ -190,9 +190,10 @@
         <section class="card">
             <h2>OTA Firmware Update</h2>
 
-            <input type="file">
-
-            <button class="primary-btn">Upload Firmware</button>
+            <input type="file" id="selected_file" onchange="getFileInfo()">
+            <div id="file_info"></div>
+            <div id="ota_update_status"></div>
+            <button class="primary-btn" onclick="updateFirmware()">Upload Firmware</button>
         </section>
 
     </main>
