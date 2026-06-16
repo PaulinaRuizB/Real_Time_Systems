@@ -215,3 +215,35 @@ hr {
     min-height: 1.4em;
     font-size: 0.9rem;
 }
+
+.range-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: 25px;
+}
+
+.range-bubble {
+    position: absolute;
+    top: 0;
+    left: 45%;
+    transform: translateX(-50%);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.control-group.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.button-group button.primary-btn {
+    background: linear-gradient(135deg, #1fc9ba, #29d3a7);
+    color: white;
+    border: none;
+}
+
+.button-group button.secondary-btn {
+    background: white;
+    color: #1fc9ba;
+    border: 1px solid #1fc9ba;
+}

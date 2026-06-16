@@ -3,7 +3,9 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 
-#define SERVO_GPIO         4
+#include "project_pins.h"
+
+#define SERVO_GPIO PIN_SERVO_PWM
 
 #define SERVO_FREQ_HZ      50
 

@@ -18,35 +18,6 @@
 
     <main class="dashboard">
 
-        <!-- STATUS -->
-        <section class="card">
-            <h2>System Status</h2>
-
-            <div class="status-grid">
-
-                <div class="status-item">
-                    <span>Temperature</span>
-                    <strong>24.5 °C</strong>
-                </div>
-
-                <div class="status-item">
-                    <span>Fan Speed</span>
-                    <strong>45 %</strong>
-                </div>
-
-                <div class="status-item">
-                    <span>Curtain Position</span>
-                    <strong>70 %</strong>
-                </div>
-
-                <div class="status-item">
-                    <span>System</span>
-                    <strong class="online">ONLINE</strong>
-                </div>
-
-            </div>
-        </section>
-
         <!-- FAN -->
         <section class="card">
             <h2>Fan Control</h2>
@@ -54,20 +25,53 @@
             <label>Mode</label>
 
             <div class="button-group">
-                <button>Automatic</button>
-                <button>Manual</button>
+                <button
+                    id="fanAutoBtn"
+                    class="secondary-btn">
+                    Automatic
+                </button>
+
+                <button
+                    id="fanManualBtn"
+                    class="primary-btn">
+                    Manual
+                </button>
             </div>
 
-            <label>Fan Speed (%)</label>
-            <input type="range" min="0" max="100" value="45">
+            <div id="fanManualControls" class="control-group">
+                <label>Fan Speed (%)</label>
 
-            <label>Desired Temperature (°C)</label>
-            <input type="number" placeholder="25">
+                <div class="range-wrapper">
+                    <span id="fanSpeedBubble" class="range-bubble">45%</span>
 
-            <label>Maximum Temperature (°C)</label>
-            <input type="number" placeholder="35">
+                    <input
+                        type="range"
+                        id="fanSpeed"
+                        min="0"
+                        max="100"
+                        value="45">
+                </div>
+            </div>
 
-            <button class="primary-btn">Apply Settings</button>
+            <div id="fanAutoControls" class="control-group">
+                <label>Desired Temperature (°C)</label>
+                <input
+                    type="number"
+                    id="desiredTemp"
+                    placeholder="25">
+
+                <label>Maximum Temperature (°C)</label>
+                <input
+                    type="number"
+                    id="maxTemp"
+                    placeholder="35">
+            </div>
+
+            <button
+                id="fanApplyBtn"
+                class="primary-btn">
+                Apply Settings
+            </button>
         </section>
 
         <!-- CURTAIN -->
@@ -150,12 +154,29 @@
             <h2>RGB Lighting</h2>
 
             <label>Select Color</label>
-            <input type="color" value="#1FC9BA">
+            <input
+                type="color"
+                id="rgbColor"
+                value="#1FC9BA">
 
             <label>Brightness (%)</label>
-            <input type="range" min="0" max="100" value="80">
 
-            <button class="primary-btn">Apply Color</button>
+            <div class="range-wrapper">
+                <span id="rgbBrightnessBubble" class="range-bubble">80%</span>
+
+                <input
+                    type="range"
+                    id="rgbBrightness"
+                    min="0"
+                    max="100"
+                    value="80">
+            </div>
+
+            <button
+                id="rgbApplyBtn"
+                class="primary-btn">
+                Apply Color
+            </button>
         </section>
 
         <!-- WIFI -->

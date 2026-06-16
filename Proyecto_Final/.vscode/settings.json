@@ -1,0 +1,14 @@
+{
+  "idf.currentSetup": "C:\\esp\\v6.0.1\\esp-idf",
+  "idf.portWin": "COM3",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32c6"
+  },
+  "clangd.path": "C:\\Users\\USUARIO\\.espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=c:\\Users\\USUARIO\\Documents\\UNAL\\9_Semestre\\SISTEMAS_EN_TIEMPO_REAL\\Proyecto_Final\\build"
+  ],
+  "idf.flashType": "JTAG"
+}

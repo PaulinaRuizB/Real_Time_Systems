@@ -9,9 +9,11 @@
 #define MAIN_RGB_LED_H_
 
 // RGB LED GPIOs
-#define RGB_LED_RED_GPIO		21
-#define RGB_LED_GREEN_GPIO		22
-#define RGB_LED_BLUE_GPIO		23
+#include "project_pins.h"
+
+#define RGB_LED_RED_GPIO        PIN_RGB_RED
+#define RGB_LED_GREEN_GPIO      PIN_RGB_GREEN
+#define RGB_LED_BLUE_GPIO       PIN_RGB_BLUE
 
 // RGB LED color mix channels
 #define RGB_LED_CHANNEL_NUM		3
@@ -40,5 +42,7 @@ void rgb_led_http_server_started(void);
  * Color to indicate that the ESP32 is connected to an access point.
  */
 void rgb_led_wifi_connected(void);
+
+void rgb_led_set_color(uint8_t red, uint8_t green, uint8_t blue);
 
 #endif /* MAIN_RGB_LED_H_ */

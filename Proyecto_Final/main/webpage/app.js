@@ -470,6 +470,126 @@ document.addEventListener("DOMContentLoaded", () =>
         "click",
         testCurtain
     );
+
+    const fanBtn =
+        document.getElementById("fanApplyBtn");
+
+    if (fanBtn)
+    {
+        fanBtn.addEventListener(
+            "click",
+            sendFanSettings
+        );
+    }
+
+    const fanSpeed =
+    document.getElementById("fanSpeed");
+
+    const fanSpeedBubble =
+        document.getElementById("fanSpeedBubble");
+
+    function updateFanBubble()
+    {
+        if (!fanSpeed || !fanSpeedBubble)
+        {
+            return;
+        }
+
+        const value = Number(fanSpeed.value);
+        const min = Number(fanSpeed.min);
+        const max = Number(fanSpeed.max);
+
+        const percent = ((value - min) * 100) / (max - min);
+
+        fanSpeedBubble.innerText = value + "%";
+        fanSpeedBubble.style.left = percent + "%";
+    }
+
+    if (fanSpeed && fanSpeedBubble)
+    {
+        updateFanBubble();
+
+        fanSpeed.addEventListener(
+            "input",
+            updateFanBubble
+        );
+    }
+
+    const fanAutoBtn =
+    document.getElementById("fanAutoBtn");
+
+    const fanManualBtn =
+        document.getElementById("fanManualBtn");
+
+    if (fanAutoBtn)
+    {
+        fanAutoBtn.addEventListener(
+            "click",
+            () =>
+            {
+                sendFanMode("automatic");
+                updateFanControlUI("automatic");
+            }
+        );
+    }
+
+    if (fanManualBtn)
+    {
+        fanManualBtn.addEventListener(
+            "click",
+            () =>
+            {
+                sendFanMode("manual");
+                updateFanControlUI("manual");
+            }
+        );
+    }
+    updateFanControlUI("manual");
+
+    const rgbApplyBtn =
+    document.getElementById("rgbApplyBtn");
+
+    if (rgbApplyBtn)
+    {
+        rgbApplyBtn.addEventListener(
+            "click",
+            sendRgbSettings
+        );
+    }
+
+    const rgbBrightness =
+        document.getElementById("rgbBrightness");
+
+    const rgbBrightnessBubble =
+        document.getElementById("rgbBrightnessBubble");
+
+    function updateRgbBrightnessBubble()
+    {
+        if (!rgbBrightness || !rgbBrightnessBubble)
+        {
+            return;
+        }
+
+        const value = Number(rgbBrightness.value);
+        const min = Number(rgbBrightness.min);
+        const max = Number(rgbBrightness.max);
+
+        const percent = ((value - min) * 100) / (max - min);
+
+        rgbBrightnessBubble.innerText = value + "%";
+        rgbBrightnessBubble.style.left = percent + "%";
+    }
+
+    if (rgbBrightness && rgbBrightnessBubble)
+    {
+        updateRgbBrightnessBubble();
+
+        rgbBrightness.addEventListener(
+            "input",
+            updateRgbBrightnessBubble
+        );
+    }
+
 });
 
 function testCurtain()
@@ -551,4 +671,135 @@ function updateAP()
     });
 }
 
+function sendFanSettings()
+{
+    let fanPercent = Number(
+        document.getElementById("fanSpeed").value
+    );
 
+    let desiredTemp = Number(
+        document.getElementById("desiredTemp").value
+    );
+
+    let maxTemp = Number(
+        document.getElementById("maxTemp").value
+    );
+
+    if (isNaN(fanPercent))
+    {
+        alert("Invalid fan percentage");
+        return;
+    }
+
+    if (isNaN(desiredTemp))
+    {
+        desiredTemp = 25;
+    }
+
+    if (isNaN(maxTemp))
+    {
+        maxTemp = 35;
+    }
+
+    if (fanPercent < 0)
+    {
+        fanPercent = 0;
+    }
+
+    if (fanPercent > 100)
+    {
+        fanPercent = 100;
+    }
+
+    fetch("/fan.json",
+    {
+        method: "POST",
+        headers:
+        {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+        {
+            fan: fanPercent,
+            desired: desiredTemp,
+            maximum: maxTemp
+        })
+    });
+}
+
+function sendFanMode(mode)
+{
+    fetch("/fanMode.json",
+    {
+        method: "POST",
+        headers:
+        {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+        {
+            mode: mode
+        })
+    });
+}
+
+function updateFanControlUI(mode)
+{
+    const manualControls =
+        document.getElementById("fanManualControls");
+
+    const autoControls =
+        document.getElementById("fanAutoControls");
+
+    const manualBtn =
+        document.getElementById("fanManualBtn");
+
+    const autoBtn =
+        document.getElementById("fanAutoBtn");
+
+    if (mode === "manual")
+    {
+        manualControls.classList.remove("disabled");
+        autoControls.classList.add("disabled");
+
+        manualBtn.classList.add("primary-btn");
+        manualBtn.classList.remove("secondary-btn");
+
+        autoBtn.classList.add("secondary-btn");
+        autoBtn.classList.remove("primary-btn");
+    }
+    else if (mode === "automatic")
+    {
+        manualControls.classList.add("disabled");
+        autoControls.classList.remove("disabled");
+
+        autoBtn.classList.add("primary-btn");
+        autoBtn.classList.remove("secondary-btn");
+
+        manualBtn.classList.add("secondary-btn");
+        manualBtn.classList.remove("primary-btn");
+    }
+}
+
+function sendRgbSettings()
+{
+    const color =
+        document.getElementById("rgbColor").value;
+
+    const brightness =
+        Number(document.getElementById("rgbBrightness").value);
+
+    fetch("/rgb.json",
+    {
+        method: "POST",
+        headers:
+        {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+        {
+            color: color,
+            brightness: brightness
+        })
+    });
+}

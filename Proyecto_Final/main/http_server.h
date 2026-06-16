@@ -8,6 +8,7 @@
 #ifndef MAIN_HTTP_SERVER_H_
 #define MAIN_HTTP_SERVER_H_
 
+#include "system_state.h"
 
 #define OTA_UPDATE_PENDING 		0
 #define OTA_UPDATE_SUCCESSFUL	1
@@ -69,6 +70,6 @@ void http_server_fw_update_reset_callback(void *arg);
 
 void toogle_led( void );
 
-
+void http_server_set_system_state(system_state_t *state);
 
 #endif /* MAIN_HTTP_SERVER_H_ */

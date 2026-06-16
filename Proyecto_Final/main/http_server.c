@@ -47,9 +47,17 @@
 #include "mqtt_client.h"
 #include "esp_sntp.h"
 
+#include "fan_control.h"
+
 // Tag used for ESP serial console messages
 static const char TAG[] = "http_server";
 
+static system_state_t *http_system_state = NULL;
+
+void http_server_set_system_state(system_state_t *state)
+{
+    http_system_state = state;
+}
 
 // Wifi connect status
 static int g_wifi_connect_status = NONE;
@@ -90,11 +98,6 @@ extern const uint8_t favicon_ico_start[]			asm("_binary_favicon_ico_start");
 extern const uint8_t favicon_ico_end[]				asm("_binary_favicon_ico_end");
 
 uint8_t s_led_state = 0;
-
-
-
-
-
 
 
 void toogle_led( void )
@@ -206,6 +209,183 @@ static esp_err_t http_server_curtain_manual_handler(
             position);
 
         curtain_set_position(position);
+    }
+
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
+static esp_err_t http_server_fan_handler(
+    httpd_req_t *req)
+{
+    char buffer[100] = {0};
+
+    int len =
+        httpd_req_recv(
+            req,
+            buffer,
+            sizeof(buffer) - 1);
+
+    if(len > 0)
+    {
+        ESP_LOGI(TAG, "Fan request: %s", buffer);
+
+        int fan_percent = 0;
+		float desired_temperature = 25.0f;
+		float maximum_temperature = 35.0f;
+
+		sscanf(
+			buffer,
+			"{\"fan\":%d,\"desired\":%f,\"maximum\":%f}",
+			&fan_percent,
+			&desired_temperature,
+			&maximum_temperature);
+
+        if(fan_percent < 0)
+        {
+            fan_percent = 0;
+        }
+
+        if(fan_percent > 100)
+        {
+            fan_percent = 100;
+        }
+
+		if (http_system_state != NULL)
+		{
+			http_system_state->fan_percent =
+				fan_percent;
+
+			http_system_state->desired_temperature_c =
+				desired_temperature;
+
+			http_system_state->maximum_temperature_c =
+				maximum_temperature;
+		}
+
+		ESP_LOGI(
+			TAG,
+			"Fan=%d%% Desired=%.1f Max=%.1f",
+			fan_percent,
+			desired_temperature,
+			maximum_temperature
+		);
+
+        fan_control_set_percent(
+            fan_percent);
+
+        ESP_LOGI(
+            TAG,
+            "Fan set to %d%%",
+            fan_percent);
+    }
+
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
+static esp_err_t http_server_fan_mode_handler(httpd_req_t *req)
+{
+    char buffer[100] = {0};
+
+    int len =
+        httpd_req_recv(
+            req,
+            buffer,
+            sizeof(buffer) - 1);
+
+    if (len > 0)
+    {
+        ESP_LOGI(TAG, "Fan mode request: %s", buffer);
+
+        if (http_system_state == NULL)
+        {
+            ESP_LOGW(TAG, "System state not set");
+            httpd_resp_send(req, NULL, 0);
+            return ESP_OK;
+        }
+
+        if (strstr(buffer, "automatic") != NULL)
+        {
+            http_system_state->fan_mode =
+                FAN_MODE_AUTOMATIC;
+
+            ESP_LOGI(TAG, "Fan mode set to AUTOMATIC");
+        }
+        else if (strstr(buffer, "manual") != NULL)
+        {
+            http_system_state->fan_mode =
+                FAN_MODE_MANUAL;
+
+            ESP_LOGI(TAG, "Fan mode set to MANUAL");
+        }
+    }
+
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
+static esp_err_t http_server_rgb_handler(httpd_req_t *req)
+{
+    char buffer[100] = {0};
+
+    int len =
+        httpd_req_recv(
+            req,
+            buffer,
+            sizeof(buffer) - 1);
+
+    if (len > 0)
+    {
+        ESP_LOGI(TAG, "RGB request: %s", buffer);
+
+        char color[8] = {0};
+        int brightness = 100;
+
+        sscanf(
+            buffer,
+            "{\"color\":\"%7[^\"]\",\"brightness\":%d}",
+            color,
+            &brightness
+        );
+
+        int red = 0;
+        int green = 0;
+        int blue = 0;
+
+        sscanf(
+            color,
+            "#%02x%02x%02x",
+            &red,
+            &green,
+            &blue
+        );
+
+		red =
+			(red * brightness) / 100;
+
+		green =
+			(green * brightness) / 100;
+
+		blue =
+			(blue * brightness) / 100;
+
+        ESP_LOGI(
+			TAG,
+			"RGB final: R=%d G=%d B=%d",
+			red,
+			green,
+			blue
+		);
+
+		rgb_led_set_color(
+			red,
+			green,
+			blue
+		);
     }
 
     httpd_resp_send(req, NULL, 0);
@@ -1270,6 +1450,42 @@ static httpd_handle_t http_server_configure(void)
 			.user_ctx = NULL
 		};
 
+		httpd_uri_t fan_control = {
+			.uri = "/fan.json",
+			.method = HTTP_POST,
+			.handler = http_server_fan_handler,
+			.user_ctx = NULL
+		};
+
+		httpd_register_uri_handler(
+			http_server_handle,
+			&fan_control
+		);
+
+		httpd_uri_t fan_mode = {
+			.uri = "/fanMode.json",
+			.method = HTTP_POST,
+			.handler = http_server_fan_mode_handler,
+			.user_ctx = NULL
+		};
+
+		httpd_uri_t rgb_control = {
+		.uri = "/rgb.json",
+		.method = HTTP_POST,
+		.handler = http_server_rgb_handler,
+		.user_ctx = NULL
+		};
+
+		httpd_register_uri_handler(
+			http_server_handle,
+			&rgb_control
+		);
+
+		httpd_register_uri_handler(
+			http_server_handle,
+			&fan_mode
+		);
+
 		httpd_register_uri_handler(
 			http_server_handle,
 			&curtain_manual
@@ -1355,12 +1571,6 @@ static httpd_handle_t http_server_configure(void)
 				.user_ctx = NULL
 		};
 		httpd_register_uri_handler(http_server_handle, &read_range_uri );
-
-
-
-
-
-		
 
 		return http_server_handle;
 	}
